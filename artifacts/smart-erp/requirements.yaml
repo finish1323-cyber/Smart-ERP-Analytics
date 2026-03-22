@@ -1,0 +1,12 @@
+packages:
+  "recharts": "For dashboard and product price trend charts"
+  "date-fns": "For formatting dates nicely in tables and logs"
+  "clsx": "For conditional class name joining"
+  "tailwind-merge": "For merging tailwind classes without conflicts"
+  "@hookform/resolvers": "For Zod form validation"
+  "react-hook-form": "For robust form state management"
+
+notes:
+  - Application uses RTL layout by default for Arabic.
+  - API hooks are imported from @workspace/api-client-react.
+  - React Query handles caching and state synchronization.
