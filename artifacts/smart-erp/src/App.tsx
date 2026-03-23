@@ -12,6 +12,7 @@ import { ProductDetail } from "@/pages/inventory/ProductDetail"
 import { Customers } from "@/pages/crm/Customers"
 import { TaskBoard } from "@/pages/tasks/TaskBoard"
 import { PurchaseOrders } from "@/pages/purchases/PurchaseOrders"
+import { Suppliers } from "@/pages/purchases/Suppliers"
 
 import { useGetCurrentUser } from "@workspace/api-client-react"
 
@@ -68,11 +69,12 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
+      <Route path="/purchases" component={() => <ProtectedRoute component={PurchaseOrders} />} />
+      <Route path="/suppliers" component={() => <ProtectedRoute component={Suppliers} />} />
       <Route path="/inventory" component={() => <ProtectedRoute component={Products} />} />
       <Route path="/inventory/products/:id" component={() => <ProtectedRoute component={ProductDetail} />} />
       <Route path="/crm" component={() => <ProtectedRoute component={Customers} />} />
       <Route path="/tasks" component={() => <ProtectedRoute component={TaskBoard} />} />
-      <Route path="/purchases" component={() => <ProtectedRoute component={PurchaseOrders} />} />
       <Route component={NotFound} />
     </Switch>
   )
