@@ -13,6 +13,8 @@ import { Customers } from "@/pages/crm/Customers"
 import { TaskBoard } from "@/pages/tasks/TaskBoard"
 import { PurchaseOrders } from "@/pages/purchases/PurchaseOrders"
 import { Suppliers } from "@/pages/purchases/Suppliers"
+import { SalesInvoices } from "@/pages/sales/SalesInvoices"
+import { Reports } from "@/pages/reports/Reports"
 
 import { useGetCurrentUser } from "@workspace/api-client-react"
 
@@ -74,7 +76,9 @@ function Router() {
       <Route path="/inventory" component={() => <ProtectedRoute component={Products} />} />
       <Route path="/inventory/products/:id" component={() => <ProtectedRoute component={ProductDetail} />} />
       <Route path="/crm" component={() => <ProtectedRoute component={Customers} />} />
+      <Route path="/sales" component={() => <ProtectedRoute component={SalesInvoices} />} />
       <Route path="/tasks" component={() => <ProtectedRoute component={TaskBoard} />} />
+      <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
       <Route component={NotFound} />
     </Switch>
   )
