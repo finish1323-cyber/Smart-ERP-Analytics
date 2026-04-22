@@ -6,6 +6,16 @@ import { logger } from "./logger";
 
 export async function initializeDatabase() {
   try {
+    // Ensure session table exists (used by connect-pg-simple)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "user_sessions" (
+        "sid" varchar NOT NULL COLLATE "default" PRIMARY KEY,
+        "sess" json NOT NULL,
+        "expire" timestamp(6) NOT NULL
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_user_sessions_expire" ON "user_sessions" ("expire")`);
+
     const existing = await db.select({ count: sql<number>`COUNT(*)` }).from(companiesTable);
     const count = parseInt(String(existing[0]?.count ?? 0));
 
