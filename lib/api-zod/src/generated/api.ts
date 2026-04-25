@@ -204,8 +204,104 @@ export const CreateSupplierBody = zod.object({
   phone: zod.string().nullish(),
   email: zod.string().nullish(),
   address: zod.string().nullish(),
-  discountPercent: zod.number(),
   notes: zod.string().nullish(),
+});
+
+/**
+ * @summary Import multiple suppliers at once (from CSV upload)
+ */
+export const BulkImportSuppliersBody = zod.object({
+  suppliers: zod.array(
+    zod.object({
+      name: zod.string(),
+      contactPerson: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      email: zod.string().nullish(),
+      address: zod.string().nullish(),
+      notes: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
+ * @summary List products supplied by a specific supplier with last supply price
+ */
+export const ListProductsBySupplierParams = zod.object({
+  supplierId: zod.coerce.number(),
+});
+
+export const ListProductsBySupplierResponseItem = zod.object({
+  id: zod.number(),
+  supplierId: zod.number(),
+  productId: zod.number(),
+  productCode: zod.string().nullish(),
+  productName: zod.string().nullish(),
+  productUnit: zod.string().nullish(),
+  productCategory: zod.string().nullish(),
+  currentQuantity: zod.number().optional(),
+  lastSupplyPrice: zod.number(),
+  lastSupplyDate: zod.date().nullish(),
+});
+export const ListProductsBySupplierResponse = zod.array(
+  ListProductsBySupplierResponseItem,
+);
+
+/**
+ * @summary List all supplier offers for a single product, sorted by best price
+ */
+export const ListSupplierOffersForProductParams = zod.object({
+  productId: zod.coerce.number(),
+});
+
+export const ListSupplierOffersForProductResponseItem = zod.object({
+  id: zod.number(),
+  supplierId: zod.number(),
+  supplierName: zod.string().nullish(),
+  lastSupplyPrice: zod.number(),
+  lastSupplyDate: zod.date().nullish(),
+});
+export const ListSupplierOffersForProductResponse = zod.array(
+  ListSupplierOffersForProductResponseItem,
+);
+
+/**
+ * @summary Get best (lowest) supply price per product across all suppliers
+ */
+export const GetBestPricesResponseItem = zod.object({
+  productId: zod.number(),
+  productCode: zod.string(),
+  productName: zod.string(),
+  productCategory: zod.string().nullish(),
+  productUnit: zod.string().nullish(),
+  currentQuantity: zod.number(),
+  costPrice: zod.number(),
+  bestSupplierId: zod.number().nullish(),
+  bestSupplierName: zod.string().nullish(),
+  bestPrice: zod.number().nullish(),
+  bestPriceDate: zod.date().nullish(),
+  supplierCount: zod.number(),
+});
+export const GetBestPricesResponse = zod.array(GetBestPricesResponseItem);
+
+/**
+ * @summary Link a product to a supplier with optional last supply price
+ */
+export const LinkSupplierProductBody = zod.object({
+  supplierId: zod.number(),
+  productId: zod.number(),
+  lastSupplyPrice: zod.number().optional(),
+});
+
+/**
+ * @summary Remove a product from a supplier
+ */
+export const UnlinkSupplierProductParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UnlinkSupplierProductResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
 });
 
 /**
@@ -241,7 +337,6 @@ export const UpdateSupplierBody = zod.object({
   phone: zod.string().nullish(),
   email: zod.string().nullish(),
   address: zod.string().nullish(),
-  discountPercent: zod.number(),
   notes: zod.string().nullish(),
 });
 

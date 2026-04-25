@@ -68,6 +68,38 @@ router.put("/:id", requireAuth, requireRole("admin", "procurement"), async (req,
   }
 });
 
+router.post("/bulk-import", requireAuth, requireRole("admin", "procurement"), async (req, res) => {
+  try {
+    const { suppliers } = req.body as { suppliers: Array<{ name: string; contactPerson?: string; phone?: string; email?: string; address?: string; notes?: string }> };
+    if (!Array.isArray(suppliers) || suppliers.length === 0) {
+      res.status(400).json({ error: "Bad Request", message: "قائمة الموردين مطلوبة" });
+      return;
+    }
+    const valid = suppliers.filter(s => s && s.name && s.name.trim());
+    if (valid.length === 0) {
+      res.status(400).json({ error: "Bad Request", message: "كل الصفوف فارغة أو بدون اسم" });
+      return;
+    }
+    const inserted = await db.insert(suppliersTable).values(
+      valid.map(s => ({
+        companyId: req.companyId!,
+        name: s.name.trim(),
+        contactPerson: s.contactPerson?.trim() || null,
+        phone: s.phone?.trim() || null,
+        email: s.email?.trim() || null,
+        address: s.address?.trim() || null,
+        notes: s.notes?.trim() || null,
+        discountPercent: "0",
+      }))
+    ).returning();
+    await logActivity({ companyId: req.companyId, userId: req.userId, description: `تم استيراد ${inserted.length} مورد دفعة واحدة` });
+    res.status(201).json({ inserted: inserted.length, skipped: suppliers.length - valid.length, suppliers: inserted });
+  } catch (err) {
+    req.log.error({ err }, "Bulk import suppliers error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.delete("/:id", requireAuth, requireRole("admin", "procurement"), async (req, res) => {
   try {
     const id = parseInt(req.params.id);

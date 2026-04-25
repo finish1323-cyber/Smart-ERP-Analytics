@@ -127,8 +127,49 @@ export interface CreateSupplierRequest {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
-  discountPercent: number;
   notes?: string | null;
+}
+
+export interface SupplierProduct {
+  id: number;
+  supplierId: number;
+  productId: number;
+  productCode?: string | null;
+  productName?: string | null;
+  productUnit?: string | null;
+  productCategory?: string | null;
+  currentQuantity?: number;
+  lastSupplyPrice: number;
+  lastSupplyDate?: string | null;
+}
+
+export interface SupplierOffer {
+  id: number;
+  supplierId: number;
+  supplierName?: string | null;
+  lastSupplyPrice: number;
+  lastSupplyDate?: string | null;
+}
+
+export interface BestPriceItem {
+  productId: number;
+  productCode: string;
+  productName: string;
+  productCategory?: string | null;
+  productUnit?: string | null;
+  currentQuantity: number;
+  costPrice: number;
+  bestSupplierId?: number | null;
+  bestSupplierName?: string | null;
+  bestPrice?: number | null;
+  bestPriceDate?: string | null;
+  supplierCount: number;
+}
+
+export interface LinkSupplierProductRequest {
+  supplierId: number;
+  productId: number;
+  lastSupplyPrice?: number;
 }
 
 export type ProductStockStatus =
@@ -639,6 +680,16 @@ export interface PriceFluctuationEntry {
   latestPrice: number;
   totalChangePercent: number;
 }
+
+export type BulkImportSuppliersBody = {
+  suppliers: CreateSupplierRequest[];
+};
+
+export type BulkImportSuppliers201 = {
+  inserted?: number;
+  skipped?: number;
+  suppliers?: Supplier[];
+};
 
 export type ListProductsParams = {
   search?: string;

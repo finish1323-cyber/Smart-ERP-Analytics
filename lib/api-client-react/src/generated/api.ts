@@ -21,6 +21,9 @@ import type {
   AddCommentRequest,
   AuditLog,
   BestPriceEntry,
+  BestPriceItem,
+  BulkImportSuppliers201,
+  BulkImportSuppliersBody,
   CallLog,
   Company,
   CreateCallLogRequest,
@@ -38,6 +41,7 @@ import type {
   ErrorResponse,
   GetTopSellingReportParams,
   HealthStatus,
+  LinkSupplierProductRequest,
   ListAuditLogsParams,
   ListCustomersParams,
   ListProductsParams,
@@ -61,6 +65,8 @@ import type {
   StockMovement,
   SuccessResponse,
   Supplier,
+  SupplierOffer,
+  SupplierProduct,
   Task,
   TaskComment,
   TaskDetail,
@@ -1113,6 +1119,529 @@ export const useCreateSupplier = <
   TContext
 > => {
   return useMutation(getCreateSupplierMutationOptions(options));
+};
+
+/**
+ * @summary Import multiple suppliers at once (from CSV upload)
+ */
+export const getBulkImportSuppliersUrl = () => {
+  return `/api/suppliers/bulk-import`;
+};
+
+export const bulkImportSuppliers = async (
+  bulkImportSuppliersBody: BulkImportSuppliersBody,
+  options?: RequestInit,
+): Promise<BulkImportSuppliers201> => {
+  return customFetch<BulkImportSuppliers201>(getBulkImportSuppliersUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(bulkImportSuppliersBody),
+  });
+};
+
+export const getBulkImportSuppliersMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkImportSuppliers>>,
+    TError,
+    { data: BodyType<BulkImportSuppliersBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkImportSuppliers>>,
+  TError,
+  { data: BodyType<BulkImportSuppliersBody> },
+  TContext
+> => {
+  const mutationKey = ["bulkImportSuppliers"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkImportSuppliers>>,
+    { data: BodyType<BulkImportSuppliersBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkImportSuppliers(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkImportSuppliersMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkImportSuppliers>>
+>;
+export type BulkImportSuppliersMutationBody = BodyType<BulkImportSuppliersBody>;
+export type BulkImportSuppliersMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Import multiple suppliers at once (from CSV upload)
+ */
+export const useBulkImportSuppliers = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkImportSuppliers>>,
+    TError,
+    { data: BodyType<BulkImportSuppliersBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof bulkImportSuppliers>>,
+  TError,
+  { data: BodyType<BulkImportSuppliersBody> },
+  TContext
+> => {
+  return useMutation(getBulkImportSuppliersMutationOptions(options));
+};
+
+/**
+ * @summary List products supplied by a specific supplier with last supply price
+ */
+export const getListProductsBySupplierUrl = (supplierId: number) => {
+  return `/api/supplier-products/by-supplier/${supplierId}`;
+};
+
+export const listProductsBySupplier = async (
+  supplierId: number,
+  options?: RequestInit,
+): Promise<SupplierProduct[]> => {
+  return customFetch<SupplierProduct[]>(
+    getListProductsBySupplierUrl(supplierId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListProductsBySupplierQueryKey = (supplierId: number) => {
+  return [`/api/supplier-products/by-supplier/${supplierId}`] as const;
+};
+
+export const getListProductsBySupplierQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProductsBySupplier>>,
+  TError = ErrorType<unknown>,
+>(
+  supplierId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProductsBySupplier>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListProductsBySupplierQueryKey(supplierId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listProductsBySupplier>>
+  > = ({ signal }) =>
+    listProductsBySupplier(supplierId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!supplierId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProductsBySupplier>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProductsBySupplierQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProductsBySupplier>>
+>;
+export type ListProductsBySupplierQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List products supplied by a specific supplier with last supply price
+ */
+
+export function useListProductsBySupplier<
+  TData = Awaited<ReturnType<typeof listProductsBySupplier>>,
+  TError = ErrorType<unknown>,
+>(
+  supplierId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProductsBySupplier>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProductsBySupplierQueryOptions(
+    supplierId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all supplier offers for a single product, sorted by best price
+ */
+export const getListSupplierOffersForProductUrl = (productId: number) => {
+  return `/api/supplier-products/by-product/${productId}`;
+};
+
+export const listSupplierOffersForProduct = async (
+  productId: number,
+  options?: RequestInit,
+): Promise<SupplierOffer[]> => {
+  return customFetch<SupplierOffer[]>(
+    getListSupplierOffersForProductUrl(productId),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListSupplierOffersForProductQueryKey = (productId: number) => {
+  return [`/api/supplier-products/by-product/${productId}`] as const;
+};
+
+export const getListSupplierOffersForProductQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSupplierOffersForProduct>>,
+  TError = ErrorType<unknown>,
+>(
+  productId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSupplierOffersForProduct>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListSupplierOffersForProductQueryKey(productId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listSupplierOffersForProduct>>
+  > = ({ signal }) =>
+    listSupplierOffersForProduct(productId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!productId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSupplierOffersForProduct>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListSupplierOffersForProductQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listSupplierOffersForProduct>>
+>;
+export type ListSupplierOffersForProductQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all supplier offers for a single product, sorted by best price
+ */
+
+export function useListSupplierOffersForProduct<
+  TData = Awaited<ReturnType<typeof listSupplierOffersForProduct>>,
+  TError = ErrorType<unknown>,
+>(
+  productId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listSupplierOffersForProduct>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListSupplierOffersForProductQueryOptions(
+    productId,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get best (lowest) supply price per product across all suppliers
+ */
+export const getGetBestPricesUrl = () => {
+  return `/api/supplier-products/best-prices`;
+};
+
+export const getBestPrices = async (
+  options?: RequestInit,
+): Promise<BestPriceItem[]> => {
+  return customFetch<BestPriceItem[]>(getGetBestPricesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetBestPricesQueryKey = () => {
+  return [`/api/supplier-products/best-prices`] as const;
+};
+
+export const getGetBestPricesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBestPrices>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBestPrices>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBestPricesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBestPrices>>> = ({
+    signal,
+  }) => getBestPrices({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBestPrices>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBestPricesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBestPrices>>
+>;
+export type GetBestPricesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get best (lowest) supply price per product across all suppliers
+ */
+
+export function useGetBestPrices<
+  TData = Awaited<ReturnType<typeof getBestPrices>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBestPrices>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBestPricesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Link a product to a supplier with optional last supply price
+ */
+export const getLinkSupplierProductUrl = () => {
+  return `/api/supplier-products`;
+};
+
+export const linkSupplierProduct = async (
+  linkSupplierProductRequest: LinkSupplierProductRequest,
+  options?: RequestInit,
+): Promise<SupplierProduct> => {
+  return customFetch<SupplierProduct>(getLinkSupplierProductUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(linkSupplierProductRequest),
+  });
+};
+
+export const getLinkSupplierProductMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof linkSupplierProduct>>,
+    TError,
+    { data: BodyType<LinkSupplierProductRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof linkSupplierProduct>>,
+  TError,
+  { data: BodyType<LinkSupplierProductRequest> },
+  TContext
+> => {
+  const mutationKey = ["linkSupplierProduct"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof linkSupplierProduct>>,
+    { data: BodyType<LinkSupplierProductRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return linkSupplierProduct(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LinkSupplierProductMutationResult = NonNullable<
+  Awaited<ReturnType<typeof linkSupplierProduct>>
+>;
+export type LinkSupplierProductMutationBody =
+  BodyType<LinkSupplierProductRequest>;
+export type LinkSupplierProductMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Link a product to a supplier with optional last supply price
+ */
+export const useLinkSupplierProduct = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof linkSupplierProduct>>,
+    TError,
+    { data: BodyType<LinkSupplierProductRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof linkSupplierProduct>>,
+  TError,
+  { data: BodyType<LinkSupplierProductRequest> },
+  TContext
+> => {
+  return useMutation(getLinkSupplierProductMutationOptions(options));
+};
+
+/**
+ * @summary Remove a product from a supplier
+ */
+export const getUnlinkSupplierProductUrl = (id: number) => {
+  return `/api/supplier-products/${id}`;
+};
+
+export const unlinkSupplierProduct = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getUnlinkSupplierProductUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getUnlinkSupplierProductMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unlinkSupplierProduct>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof unlinkSupplierProduct>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["unlinkSupplierProduct"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof unlinkSupplierProduct>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return unlinkSupplierProduct(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UnlinkSupplierProductMutationResult = NonNullable<
+  Awaited<ReturnType<typeof unlinkSupplierProduct>>
+>;
+
+export type UnlinkSupplierProductMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Remove a product from a supplier
+ */
+export const useUnlinkSupplierProduct = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof unlinkSupplierProduct>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof unlinkSupplierProduct>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getUnlinkSupplierProductMutationOptions(options));
 };
 
 /**

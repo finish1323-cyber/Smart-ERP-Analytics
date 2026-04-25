@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { icon: FileText, label: "أوامر الشراء", href: "/purchases" },
       { icon: Building2, label: "الموردون", href: "/suppliers" },
+      { icon: BarChart, label: "أفضل الأسعار", href: "/best-prices" },
     ]
   },
   { icon: Package, label: "المخزن والمنتجات", href: "/inventory" },

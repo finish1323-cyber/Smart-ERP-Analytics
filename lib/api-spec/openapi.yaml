@@ -258,6 +258,135 @@ paths:
               schema:
                 $ref: "#/components/schemas/Supplier"
 
+  /suppliers/bulk-import:
+    post:
+      operationId: bulkImportSuppliers
+      tags: [suppliers]
+      summary: Import multiple suppliers at once (from CSV upload)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                suppliers:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/CreateSupplierRequest"
+              required: [suppliers]
+      responses:
+        "201":
+          description: Suppliers imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inserted:
+                    type: integer
+                  skipped:
+                    type: integer
+                  suppliers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Supplier"
+
+  /supplier-products/by-supplier/{supplierId}:
+    get:
+      operationId: listProductsBySupplier
+      tags: [supplier-products]
+      summary: List products supplied by a specific supplier with last supply price
+      parameters:
+        - name: supplierId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of supplier products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupplierProduct"
+
+  /supplier-products/by-product/{productId}:
+    get:
+      operationId: listSupplierOffersForProduct
+      tags: [supplier-products]
+      summary: List all supplier offers for a single product, sorted by best price
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Supplier offers for the product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupplierOffer"
+
+  /supplier-products/best-prices:
+    get:
+      operationId: getBestPrices
+      tags: [supplier-products]
+      summary: Get best (lowest) supply price per product across all suppliers
+      responses:
+        "200":
+          description: Best price per product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BestPriceItem"
+
+  /supplier-products:
+    post:
+      operationId: linkSupplierProduct
+      tags: [supplier-products]
+      summary: Link a product to a supplier with optional last supply price
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkSupplierProductRequest"
+      responses:
+        "201":
+          description: Created/updated link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierProduct"
+
+  /supplier-products/{id}:
+    delete:
+      operationId: unlinkSupplierProduct
+      tags: [supplier-products]
+      summary: Remove a product from a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Unlinked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   /suppliers/{id}:
     get:
       operationId: getSupplier
@@ -1343,12 +1472,106 @@ components:
         address:
           type: string
           nullable: true
-        discountPercent:
-          type: number
         notes:
           type: string
           nullable: true
-      required: [name, discountPercent]
+      required: [name]
+
+    SupplierProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+        supplierId:
+          type: integer
+        productId:
+          type: integer
+        productCode:
+          type: string
+          nullable: true
+        productName:
+          type: string
+          nullable: true
+        productUnit:
+          type: string
+          nullable: true
+        productCategory:
+          type: string
+          nullable: true
+        currentQuantity:
+          type: number
+        lastSupplyPrice:
+          type: number
+        lastSupplyDate:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, supplierId, productId, lastSupplyPrice]
+
+    SupplierOffer:
+      type: object
+      properties:
+        id:
+          type: integer
+        supplierId:
+          type: integer
+        supplierName:
+          type: string
+          nullable: true
+        lastSupplyPrice:
+          type: number
+        lastSupplyDate:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, supplierId, lastSupplyPrice]
+
+    BestPriceItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productCode:
+          type: string
+        productName:
+          type: string
+        productCategory:
+          type: string
+          nullable: true
+        productUnit:
+          type: string
+          nullable: true
+        currentQuantity:
+          type: number
+        costPrice:
+          type: number
+        bestSupplierId:
+          type: integer
+          nullable: true
+        bestSupplierName:
+          type: string
+          nullable: true
+        bestPrice:
+          type: number
+          nullable: true
+        bestPriceDate:
+          type: string
+          format: date-time
+          nullable: true
+        supplierCount:
+          type: integer
+      required: [productId, productCode, productName, currentQuantity, costPrice, supplierCount]
+
+    LinkSupplierProductRequest:
+      type: object
+      properties:
+        supplierId:
+          type: integer
+        productId:
+          type: integer
+        lastSupplyPrice:
+          type: number
+      required: [supplierId, productId]
 
     Product:
       type: object

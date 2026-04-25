@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { purchaseOrdersTable, purchaseOrderItemsTable, productsTable, suppliersTable, stockMovementsTable, priceHistoryTable, tasksTable } from "@workspace/db";
+import { purchaseOrdersTable, purchaseOrderItemsTable, productsTable, suppliersTable, stockMovementsTable, priceHistoryTable, tasksTable, supplierProductsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { logActivity } from "../lib/audit";
@@ -229,6 +229,26 @@ router.post("/:id/receive", requireAuth, requireRole("admin", "procurement", "in
           userId: req.userId,
           notes: `استلام من أمر شراء ${po[0].orderNumber}`,
         });
+
+        // Update supplier-product link with last supply price/date
+        if (itemUnitPrice > 0) {
+          await db
+            .insert(supplierProductsTable)
+            .values({
+              companyId: req.companyId!,
+              supplierId: po[0].supplierId,
+              productId: p.id,
+              lastSupplyPrice: itemUnitPrice.toString(),
+              lastSupplyDate: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: [supplierProductsTable.supplierId, supplierProductsTable.productId],
+              set: {
+                lastSupplyPrice: itemUnitPrice.toString(),
+                lastSupplyDate: new Date(),
+              },
+            });
+        }
       }
     }
 

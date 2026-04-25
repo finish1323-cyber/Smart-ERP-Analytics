@@ -7,7 +7,11 @@ import {
   useDeletePurchaseOrder,
   useListSuppliers,
   useListProducts,
+  useListProductsBySupplier,
 } from "@workspace/api-client-react"
+import { downloadCSV } from "@/lib/csv"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -28,7 +32,7 @@ import {
   Plus, Search, FileText, CheckCircle2, Clock, XCircle, Eye,
   Truck, Package, Calculator, AlertTriangle, Minus, Trash2,
   TrendingDown, ChevronLeft, Percent, ShoppingCart, ReceiptText,
-  Building2, X, Check
+  Building2, X, Check, Download, Printer, Sparkles, History
 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -79,6 +83,10 @@ export function PurchaseOrders() {
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [supplierFilter, setSupplierFilter] = useState("all")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+  const [showOnlySupplierProducts, setShowOnlySupplierProducts] = useState(true)
 
   // Modals
   const [showCreate, setShowCreate] = useState(false)
@@ -103,6 +111,10 @@ export function PurchaseOrders() {
   const { data: pos = [], isLoading } = useListPurchaseOrders()
   const { data: suppliers = [] } = useListSuppliers()
   const { data: products = [] } = useListProducts()
+  const { data: supplierProductsData = [] } = useListProductsBySupplier(
+    selectedSupplierId ?? 0,
+    { query: { enabled: !!selectedSupplierId } }
+  )
   const { data: viewPO } = useGetPurchaseOrder(viewId ?? 0, { query: { enabled: !!viewId } })
   const { data: receivePO } = useGetPurchaseOrder(receiveId ?? 0, { query: { enabled: !!receiveId } })
   const createMutation = useCreatePurchaseOrder()
@@ -145,13 +157,28 @@ export function PurchaseOrders() {
     setAddPrice("")
   }
 
-  // Auto-fill price when product selected
+  // Map of last supply price per product for selected supplier
+  const lastPriceMap = useMemo(() => {
+    const m = new Map<number, { price: number; date: string | null | undefined }>()
+    for (const sp of supplierProductsData as any[]) {
+      m.set(sp.productId, { price: Number(sp.lastSupplyPrice) || 0, date: sp.lastSupplyDate })
+    }
+    return m
+  }, [supplierProductsData])
+
+  // Auto-fill price when product selected: prefer lastSupplyPrice from this supplier, fallback to product cost
   useEffect(() => {
     if (addProductId) {
-      const product = products.find((p: any) => p.id === parseInt(addProductId)) as any
+      const pid = parseInt(addProductId)
+      const last = lastPriceMap.get(pid)
+      if (last && last.price > 0) {
+        setAddPrice(String(last.price))
+        return
+      }
+      const product = products.find((p: any) => p.id === pid) as any
       if (product) setAddPrice(String(product.costPrice || ""))
     }
-  }, [addProductId, products])
+  }, [addProductId, products, lastPriceMap])
 
   const removeFromCart = (pid: number) => setCart(cart.filter(c => c.productId !== pid))
   const updateCartQty = (pid: number, qty: string) =>
@@ -260,18 +287,55 @@ export function PurchaseOrders() {
 
   const filtered = pos.filter((p: PO) => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter
-    const matchSearch = p.orderNumber.includes(search) ||
-      (p.supplierName ?? "").includes(search)
-    return matchStatus && matchSearch
+    const matchSupplier = supplierFilter === "all" || p.supplierId === parseInt(supplierFilter)
+    const q = search.toLowerCase()
+    const matchSearch = !q ||
+      p.orderNumber.toLowerCase().includes(q) ||
+      (p.supplierName ?? "").toLowerCase().includes(q)
+    const created = new Date(p.createdAt).getTime()
+    const fromOk = !dateFrom || created >= new Date(dateFrom).getTime()
+    const toOk = !dateTo || created <= new Date(dateTo).getTime() + 24 * 3600 * 1000
+    return matchStatus && matchSupplier && matchSearch && fromOk && toOk
   })
+
+  const exportCSV = () => {
+    downloadCSV(
+      `purchase-orders-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["رقم الأمر", "المورد", "الحالة", "التاريخ", "المجموع", "الخصم %", "الضريبة %", "الصافي", "ملاحظات"],
+      filtered.map((p: PO) => [
+        p.orderNumber,
+        p.supplierName ?? "",
+        statusConfig[p.status]?.label ?? p.status,
+        new Date(p.createdAt).toLocaleDateString("ar-EG"),
+        p.totalAmount,
+        p.discountPercent,
+        p.taxPercent,
+        p.netAmount,
+        p.notes ?? "",
+      ])
+    )
+  }
+
+  const openPrint = (id: number) => {
+    const base = (import.meta as any).env?.BASE_URL ?? "/"
+    const url = `${base}print/po/${id}`.replace(/\/+/g, "/")
+    window.open(url, "_blank")
+  }
 
   const pendingCount = pos.filter((p: PO) => p.status === "pending").length
   const totalValue = pos.reduce((s: number, p: PO) => s + (p.netAmount || 0), 0)
 
-  // Available products not in cart
-  const availableProducts = products.filter(
-    (p: any) => !cart.some(c => c.productId === p.id)
-  )
+  // Available products not in cart - filtered by supplier if toggle on
+  const availableProducts = useMemo(() => {
+    const inCart = (id: number) => cart.some(c => c.productId === id)
+    if (showOnlySupplierProducts && selectedSupplierId && supplierProductsData.length > 0) {
+      const supplierProductIds = new Set((supplierProductsData as any[]).map(sp => sp.productId))
+      return products.filter((p: any) => supplierProductIds.has(p.id) && !inCart(p.id))
+    }
+    return products.filter((p: any) => !inCart(p.id))
+  }, [products, cart, supplierProductsData, showOnlySupplierProducts, selectedSupplierId])
+
+  const supplierHasHistory = (supplierProductsData as any[]).length > 0
 
   return (
     <div className="space-y-6">
@@ -281,9 +345,14 @@ export function PurchaseOrders() {
           <h1 className="text-3xl font-extrabold tracking-tight">أوامر الشراء</h1>
           <p className="text-muted-foreground mt-1">إدارة طلبات التوريد والاستلامات الفعلية</p>
         </div>
-        <Button className="gap-2 shadow-sm" onClick={() => { resetCreateForm(); setShowCreate(true) }}>
-          <Plus className="w-5 h-5" /> أمر شراء جديد
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2" onClick={exportCSV} disabled={filtered.length === 0}>
+            <Download className="w-4 h-4" /> تصدير CSV
+          </Button>
+          <Button className="gap-2 shadow-sm" onClick={() => { resetCreateForm(); setShowCreate(true) }}>
+            <Plus className="w-5 h-5" /> أمر شراء جديد
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -307,8 +376,8 @@ export function PurchaseOrders() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+        <div className="relative md:col-span-4">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             placeholder="بحث برقم الأمر أو اسم المورد..."
@@ -318,7 +387,7 @@ export function PurchaseOrders() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-44 bg-white">
+          <SelectTrigger className="md:col-span-2 bg-white">
             <SelectValue placeholder="كل الحالات" />
           </SelectTrigger>
           <SelectContent>
@@ -329,6 +398,19 @@ export function PurchaseOrders() {
             <SelectItem value="cancelled">ملغي</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+          <SelectTrigger className="md:col-span-2 bg-white">
+            <SelectValue placeholder="كل الموردين" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الموردين</SelectItem>
+            {suppliers.map((s: any) => (
+              <SelectItem key={s.id} value={s.id.toString()}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input type="date" className="md:col-span-2 bg-white" value={dateFrom} onChange={e => setDateFrom(e.target.value)} placeholder="من تاريخ" />
+        <Input type="date" className="md:col-span-2 bg-white" value={dateTo} onChange={e => setDateTo(e.target.value)} placeholder="إلى تاريخ" />
       </div>
 
       {/* Orders List */}
@@ -475,27 +557,67 @@ export function PurchaseOrders() {
             {/* Step 2: Add Products */}
             {selectedSupplierId && (
               <div>
-                <label className="text-sm font-bold mb-2 block flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center">2</span>
-                  إضافة الأصناف
-                </label>
+                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                  <label className="text-sm font-bold flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center">2</span>
+                    إضافة الأصناف
+                  </label>
+                  {supplierHasHistory && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch
+                        id="onlySupplierProducts"
+                        checked={showOnlySupplierProducts}
+                        onCheckedChange={setShowOnlySupplierProducts}
+                      />
+                      <Label htmlFor="onlySupplierProducts" className="text-muted-foreground cursor-pointer flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-500" />
+                        أصناف هذا المورد فقط
+                      </Label>
+                    </div>
+                  )}
+                </div>
+                {addProductId && lastPriceMap.has(parseInt(addProductId)) && (
+                  <div className="mb-2 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+                    <History className="w-3.5 h-3.5" />
+                    آخر سعر توريد من هذا المورد: <strong>{formatCurrency(lastPriceMap.get(parseInt(addProductId))!.price)}</strong>
+                    {lastPriceMap.get(parseInt(addProductId))!.date && (
+                      <span className="text-emerald-600">— {formatDate(lastPriceMap.get(parseInt(addProductId))!.date as string)}</span>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Select value={addProductId} onValueChange={setAddProductId}>
                     <SelectTrigger className="flex-1 bg-white">
-                      <SelectValue placeholder="اختر الصنف..." />
+                      <SelectValue placeholder={
+                        showOnlySupplierProducts && supplierHasHistory
+                          ? `اختر من أصناف المورد (${availableProducts.length})...`
+                          : `اختر الصنف (${availableProducts.length})...`
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableProducts.map((p: any) => (
-                        <SelectItem key={p.id} value={p.id.toString()}>
-                          <span className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground font-mono">{p.code}</span>
-                            {p.name}
-                            <span className="text-xs text-muted-foreground mr-auto">
-                              {formatCurrency(p.costPrice)}
+                      {availableProducts.length === 0 && (
+                        <div className="p-3 text-xs text-muted-foreground text-center">
+                          {showOnlySupplierProducts ? "لا توجد أصناف مرتبطة بهذا المورد" : "لا توجد أصناف"}
+                        </div>
+                      )}
+                      {availableProducts.map((p: any) => {
+                        const last = lastPriceMap.get(p.id)
+                        return (
+                          <SelectItem key={p.id} value={p.id.toString()}>
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground font-mono">{p.code}</span>
+                              {p.name}
+                              <span className="text-xs mr-auto">
+                                {last ? (
+                                  <span className="text-emerald-600 font-semibold">{formatCurrency(last.price)}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">{formatCurrency(p.costPrice)}</span>
+                                )}
+                              </span>
                             </span>
-                          </span>
-                        </SelectItem>
-                      ))}
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                   <Input
@@ -793,6 +915,11 @@ export function PurchaseOrders() {
           )}
 
           <DialogFooter className="gap-2">
+            {viewPO && (
+              <Button variant="outline" className="gap-2" onClick={() => openPrint(viewPO.id)}>
+                <Printer className="w-4 h-4" /> طباعة / PDF
+              </Button>
+            )}
             {viewPO && (viewPO.status === "pending" || viewPO.status === "partial") && (
               <Button
                 className="gap-2 bg-emerald-600 hover:bg-emerald-700"

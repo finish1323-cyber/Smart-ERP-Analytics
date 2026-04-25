@@ -13,8 +13,11 @@ import { Customers } from "@/pages/crm/Customers"
 import { TaskBoard } from "@/pages/tasks/TaskBoard"
 import { PurchaseOrders } from "@/pages/purchases/PurchaseOrders"
 import { Suppliers } from "@/pages/purchases/Suppliers"
+import { BestPrices } from "@/pages/purchases/BestPrices"
+import { PrintPO } from "@/pages/purchases/PrintPO"
 import { SalesInvoices } from "@/pages/sales/SalesInvoices"
 import { Reports } from "@/pages/reports/Reports"
+import { Settings } from "@/pages/settings/Settings"
 
 import { useGetCurrentUser } from "@workspace/api-client-react"
 
@@ -73,12 +76,15 @@ function Router() {
       <Route path="/" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/purchases" component={() => <ProtectedRoute component={PurchaseOrders} />} />
       <Route path="/suppliers" component={() => <ProtectedRoute component={Suppliers} />} />
+      <Route path="/best-prices" component={() => <ProtectedRoute component={BestPrices} />} />
+      <Route path="/print/po/:id" component={PrintPO} />
       <Route path="/inventory" component={() => <ProtectedRoute component={Products} />} />
       <Route path="/inventory/products/:id" component={() => <ProtectedRoute component={ProductDetail} />} />
       <Route path="/crm" component={() => <ProtectedRoute component={Customers} />} />
       <Route path="/sales" component={() => <ProtectedRoute component={SalesInvoices} />} />
       <Route path="/tasks" component={() => <ProtectedRoute component={TaskBoard} />} />
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
       <Route component={NotFound} />
     </Switch>
   )

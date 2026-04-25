@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useMemo } from "react"
 import {
   useListSuppliers,
   useCreateSupplier,
@@ -6,7 +6,15 @@ import {
   useDeleteSupplier,
   useListPurchaseOrders,
   useListProducts,
+  useBulkImportSuppliers,
+  useListProductsBySupplier,
+  useLinkSupplierProduct,
+  useUnlinkSupplierProduct,
 } from "@workspace/api-client-react"
+import { downloadCSV, parseCSV } from "@/lib/csv"
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select"
 import { useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -34,7 +42,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Plus, Search, Phone, Mail, MapPin, Percent, User,
   Pencil, Trash2, Eye, Building2, ShoppingCart, Star,
-  TrendingDown, Package, ChevronLeft, FileText
+  TrendingDown, Package, ChevronLeft, FileText,
+  Upload, Download, FileDown, X, Link2, History
 } from "lucide-react"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
@@ -67,6 +76,9 @@ const emptyForm: SupplierFormData = {
   notes: "",
 }
 
+const CSV_HEADERS = ["اسم المورد", "الشخص المسؤول", "الهاتف", "البريد", "العنوان", "ملاحظات"]
+const CSV_KEYS = ["name", "contactPerson", "phone", "email", "address", "notes"] as const
+
 export function Suppliers() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -78,12 +90,27 @@ export function Suppliers() {
   const [form, setForm] = useState<SupplierFormData>(emptyForm)
   const [saving, setSaving] = useState(false)
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const { data: suppliers = [], isLoading } = useListSuppliers()
   const { data: purchaseOrders = [] } = useListPurchaseOrders()
   const { data: products = [] } = useListProducts()
   const createMutation = useCreateSupplier()
   const updateMutation = useUpdateSupplier()
   const deleteMutation = useDeleteSupplier()
+  const bulkImportMutation = useBulkImportSuppliers()
+  const linkMutation = useLinkSupplierProduct()
+  const unlinkMutation = useUnlinkSupplierProduct()
+
+  const { data: supplierProducts = [], isLoading: loadingSupProducts } = useListProductsBySupplier(
+    viewingSupplier?.id ?? 0,
+    { query: { enabled: !!viewingSupplier } }
+  )
+
+  // Add product to supplier dialog state
+  const [addProductOpen, setAddProductOpen] = useState(false)
+  const [addProductId, setAddProductId] = useState("")
+  const [addProductPrice, setAddProductPrice] = useState("")
 
   const filtered = suppliers.filter((s: Supplier) =>
     s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -164,6 +191,124 @@ export function Suppliers() {
     const pos = purchaseOrders.filter((p: any) => p.supplierId === supplierId)
     return pos.slice(0, 5)
   }
+
+  // ===== Bulk Import / Export =====
+  const exportSuppliersCSV = () => {
+    downloadCSV(
+      `suppliers-${new Date().toISOString().slice(0, 10)}.csv`,
+      CSV_HEADERS,
+      filtered.map((s: Supplier) =>
+        CSV_KEYS.map(k => (s as any)[k] ?? "")
+      )
+    )
+  }
+
+  const downloadCSVTemplate = () => {
+    downloadCSV(
+      "suppliers-template.csv",
+      CSV_HEADERS,
+      [
+        ["شركة الأمل للتوريدات", "أحمد محمد", "01012345678", "info@example.com", "القاهرة", "مورد رئيسي"],
+        ["مؤسسة النور", "محمود علي", "01198765432", "", "الإسكندرية", ""],
+      ]
+    )
+  }
+
+  const handleImportClick = () => fileInputRef.current?.click()
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ""
+    try {
+      const text = await file.text()
+      const rows = parseCSV(text)
+      if (rows.length < 2) {
+        toast({ title: "ملف فارغ", description: "تأكد من وجود رؤوس وصف بيانات على الأقل", variant: "destructive" })
+        return
+      }
+      // Map header positions
+      const headers = rows[0].map(h => h.trim())
+      const idx = (key: string) => {
+        // accept either Arabic header or english key
+        const alias: Record<string, string[]> = {
+          name: ["اسم المورد", "name"],
+          contactPerson: ["الشخص المسؤول", "المسؤول", "contactPerson"],
+          phone: ["الهاتف", "phone"],
+          email: ["البريد", "البريد الإلكتروني", "email"],
+          address: ["العنوان", "address"],
+          notes: ["ملاحظات", "notes"],
+        }
+        for (const a of alias[key] ?? []) {
+          const i = headers.indexOf(a)
+          if (i !== -1) return i
+        }
+        return -1
+      }
+      const colIdx = Object.fromEntries(CSV_KEYS.map(k => [k, idx(k)])) as Record<string, number>
+      if (colIdx.name === -1) {
+        toast({ title: "تنسيق خاطئ", description: "العمود 'اسم المورد' مطلوب", variant: "destructive" })
+        return
+      }
+      const items = rows.slice(1)
+        .map(r => ({
+          name: (r[colIdx.name] ?? "").trim(),
+          contactPerson: colIdx.contactPerson >= 0 ? (r[colIdx.contactPerson] ?? "").trim() || undefined : undefined,
+          phone: colIdx.phone >= 0 ? (r[colIdx.phone] ?? "").trim() || undefined : undefined,
+          email: colIdx.email >= 0 ? (r[colIdx.email] ?? "").trim() || undefined : undefined,
+          address: colIdx.address >= 0 ? (r[colIdx.address] ?? "").trim() || undefined : undefined,
+          notes: colIdx.notes >= 0 ? (r[colIdx.notes] ?? "").trim() || undefined : undefined,
+        }))
+        .filter(s => s.name)
+      if (items.length === 0) {
+        toast({ title: "لا يوجد موردون صالحون", description: "تأكد من تعبئة عمود الاسم", variant: "destructive" })
+        return
+      }
+      const res: any = await bulkImportMutation.mutateAsync({ data: { suppliers: items as any } })
+      toast({
+        title: "تم الاستيراد",
+        description: `تم إضافة ${res.inserted} مورد${res.skipped ? ` — تخطي ${res.skipped} (مكرر أو خطأ)` : ""}`,
+      })
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] })
+    } catch (err) {
+      toast({ title: "خطأ في الاستيراد", description: "تأكد من ملف CSV صحيح", variant: "destructive" })
+    }
+  }
+
+  // ===== Supplier Products Linking =====
+  const handleLinkProduct = async () => {
+    if (!viewingSupplier || !addProductId) return
+    const pid = parseInt(addProductId)
+    const price = parseFloat(addProductPrice) || 0
+    try {
+      await linkMutation.mutateAsync({
+        data: { supplierId: viewingSupplier.id, productId: pid, lastSupplyPrice: price },
+      })
+      toast({ title: "تم الربط", description: "تم إضافة الصنف لقائمة هذا المورد" })
+      queryClient.invalidateQueries({ queryKey: ["supplier-products"] })
+      setAddProductOpen(false)
+      setAddProductId("")
+      setAddProductPrice("")
+    } catch {
+      toast({ title: "خطأ", description: "فشل ربط الصنف", variant: "destructive" })
+    }
+  }
+
+  const handleUnlinkProduct = async (linkId: number) => {
+    try {
+      await unlinkMutation.mutateAsync({ id: linkId })
+      toast({ title: "تم الفصل", description: "تم حذف الصنف من قائمة المورد" })
+      queryClient.invalidateQueries({ queryKey: ["supplier-products"] })
+    } catch {
+      toast({ title: "خطأ", description: "فشل الحذف", variant: "destructive" })
+    }
+  }
+
+  const linkableProducts = useMemo(() => {
+    if (!viewingSupplier) return []
+    const linked = new Set((supplierProducts as any[]).map(sp => sp.productId))
+    return (products as any[]).filter(p => !linked.has(p.id))
+  }, [products, supplierProducts, viewingSupplier])
 
   if (viewingSupplier) {
     const stats = getSupplierStats(viewingSupplier.id)
@@ -254,48 +399,170 @@ export function Suppliers() {
             </div>
           </div>
 
-          {/* Orders History */}
+          {/* Tabs: Orders + Products */}
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4 text-primary" />
-                  سجل أوامر الشراء
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {recentOrders.length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                    <p>لا توجد أوامر شراء بعد</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {recentOrders.map((po: any) => {
-                      const statusMap: Record<string, { label: string; color: string }> = {
-                        pending: { label: "معلق", color: "bg-amber-100 text-amber-700" },
-                        partial: { label: "استلام جزئي", color: "bg-blue-100 text-blue-700" },
-                        received: { label: "تم الاستلام", color: "bg-emerald-100 text-emerald-700" },
-                        cancelled: { label: "ملغي", color: "bg-red-100 text-red-700" },
-                      }
-                      const st = statusMap[po.status] ?? statusMap.pending
-                      return (
-                        <div key={po.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
-                          <div>
-                            <p className="font-semibold text-sm">#{po.orderNumber}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{formatDate(po.createdAt)}</p>
-                          </div>
-                          <Badge className={`${st.color} border-none text-xs`}>{st.label}</Badge>
-                          <p className="font-bold text-sm">{formatCurrency(po.netAmount)}</p>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+              <CardContent className="p-0">
+                <Tabs defaultValue="products" className="w-full">
+                  <TabsList className="w-full justify-start border-b rounded-none rounded-t-xl bg-muted/30 p-1 h-auto">
+                    <TabsTrigger value="products" className="gap-2 data-[state=active]:bg-white">
+                      <Package className="w-4 h-4" /> أصناف يوردها ({(supplierProducts as any[]).length})
+                    </TabsTrigger>
+                    <TabsTrigger value="orders" className="gap-2 data-[state=active]:bg-white">
+                      <ShoppingCart className="w-4 h-4" /> سجل الأوامر ({recentOrders.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="products" className="p-5 m-0">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-muted-foreground">
+                        الأصناف اللي بيوردها هذا المورد مع آخر سعر توريد
+                      </p>
+                      <Button size="sm" className="gap-2" onClick={() => { setAddProductId(""); setAddProductPrice(""); setAddProductOpen(true) }}>
+                        <Link2 className="w-4 h-4" /> ربط صنف
+                      </Button>
+                    </div>
+                    {loadingSupProducts ? (
+                      <div className="text-center py-6 text-muted-foreground">جاري التحميل...</div>
+                    ) : (supplierProducts as any[]).length === 0 ? (
+                      <div className="text-center py-10 text-muted-foreground">
+                        <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p>لا توجد أصناف مرتبطة</p>
+                        <p className="text-xs mt-1">اربط الأصناف يدوياً أو سيتم إضافتها تلقائياً عند استلام أمر شراء</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-muted/40">
+                            <tr className="text-right">
+                              <th className="p-3 font-semibold">الصنف</th>
+                              <th className="p-3 font-semibold">آخر سعر توريد</th>
+                              <th className="p-3 font-semibold">آخر توريد</th>
+                              <th className="p-3 w-10"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(supplierProducts as any[]).map(sp => (
+                              <tr key={sp.id} className="border-t border-border/50">
+                                <td className="p-3">
+                                  <p className="font-semibold">{sp.productName}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">{sp.productCode}</p>
+                                </td>
+                                <td className="p-3 font-bold text-emerald-700">{formatCurrency(sp.lastSupplyPrice)}</td>
+                                <td className="p-3 text-xs text-muted-foreground">
+                                  {sp.lastSupplyDate ? (
+                                    <span className="flex items-center gap-1">
+                                      <History className="w-3 h-3" />
+                                      {formatDate(sp.lastSupplyDate)}
+                                    </span>
+                                  ) : "—"}
+                                </td>
+                                <td className="p-3">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-destructive"
+                                    onClick={() => handleUnlinkProduct(sp.id)}
+                                    title="فصل الصنف"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="orders" className="p-5 m-0">
+                    {recentOrders.length === 0 ? (
+                      <div className="text-center py-10 text-muted-foreground">
+                        <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                        <p>لا توجد أوامر شراء بعد</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {recentOrders.map((po: any) => {
+                          const statusMap: Record<string, { label: string; color: string }> = {
+                            pending: { label: "معلق", color: "bg-amber-100 text-amber-700" },
+                            partial: { label: "استلام جزئي", color: "bg-blue-100 text-blue-700" },
+                            received: { label: "تم الاستلام", color: "bg-emerald-100 text-emerald-700" },
+                            cancelled: { label: "ملغي", color: "bg-red-100 text-red-700" },
+                          }
+                          const st = statusMap[po.status] ?? statusMap.pending
+                          return (
+                            <div key={po.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/50">
+                              <div>
+                                <p className="font-semibold text-sm">#{po.orderNumber}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{formatDate(po.createdAt)}</p>
+                              </div>
+                              <Badge className={`${st.color} border-none text-xs`}>{st.label}</Badge>
+                              <p className="font-bold text-sm">{formatCurrency(po.netAmount)}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* Link Product Dialog */}
+        <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
+          <DialogContent dir="rtl" className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-primary" /> ربط صنف بالمورد
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">الصنف</label>
+                <Select value={addProductId} onValueChange={setAddProductId}>
+                  <SelectTrigger><SelectValue placeholder="اختر صنف..." /></SelectTrigger>
+                  <SelectContent>
+                    {linkableProducts.length === 0 && (
+                      <div className="p-3 text-xs text-muted-foreground text-center">كل الأصناف مرتبطة بالفعل</div>
+                    )}
+                    {linkableProducts.map((p: any) => (
+                      <SelectItem key={p.id} value={p.id.toString()}>
+                        <span className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground font-mono">{p.code}</span>
+                          {p.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-semibold mb-1.5 block">آخر سعر توريد (اختياري)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={addProductPrice}
+                  onChange={e => setAddProductPrice(e.target.value)}
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  هيتم تحديثه تلقائياً مع كل استلام أمر شراء
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAddProductOpen(false)}>إلغاء</Button>
+              <Button onClick={handleLinkProduct} disabled={!addProductId || linkMutation.isPending}>
+                ربط الصنف
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
@@ -308,9 +575,27 @@ export function Suppliers() {
           <h1 className="text-3xl font-extrabold tracking-tight">الموردون</h1>
           <p className="text-muted-foreground mt-1">إدارة الموردين وسجل التعاملات</p>
         </div>
-        <Button className="gap-2 shadow-sm" onClick={openAdd}>
-          <Plus className="w-5 h-5" /> إضافة مورد
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <Button variant="outline" size="sm" className="gap-2" onClick={downloadCSVTemplate}>
+            <FileDown className="w-4 h-4" /> قالب CSV
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleImportClick} disabled={bulkImportMutation.isPending}>
+            <Upload className="w-4 h-4" /> استيراد CSV
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={exportSuppliersCSV} disabled={filtered.length === 0}>
+            <Download className="w-4 h-4" /> تصدير CSV
+          </Button>
+          <Button className="gap-2 shadow-sm" onClick={openAdd}>
+            <Plus className="w-5 h-5" /> إضافة مورد
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -508,12 +793,10 @@ export function Suppliers() {
               />
             </div>
 
-            {parseFloat(form.discountPercent) > 0 && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-                <Percent className="w-4 h-4 shrink-0" />
-                سيتم تطبيق خصم <strong>{form.discountPercent}%</strong> تلقائياً على جميع أوامر الشراء من هذا المورد
-              </div>
-            )}
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-xs">
+              <Percent className="w-4 h-4 shrink-0" />
+              ملاحظة: الخصومات تُحدَّد لكل أمر شراء على حدة (وليس لكل مورد) لتوفير مرونة أعلى.
+            </div>
           </div>
 
           <DialogFooter className="gap-2">

@@ -16,6 +16,20 @@ export async function initializeDatabase() {
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_user_sessions_expire" ON "user_sessions" ("expire")`);
 
+    // Ensure supplier_products junction table exists (links suppliers to products with last supply price)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "supplier_products" (
+        "id" serial PRIMARY KEY,
+        "company_id" integer NOT NULL REFERENCES "companies"("id"),
+        "supplier_id" integer NOT NULL REFERENCES "suppliers"("id") ON DELETE CASCADE,
+        "product_id" integer NOT NULL REFERENCES "products"("id") ON DELETE CASCADE,
+        "last_supply_price" numeric(12,2) NOT NULL DEFAULT '0',
+        "last_supply_date" timestamp,
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        UNIQUE("supplier_id", "product_id")
+      )
+    `);
+
     const existing = await db.select({ count: sql<number>`COUNT(*)` }).from(companiesTable);
     const count = parseInt(String(existing[0]?.count ?? 0));
 

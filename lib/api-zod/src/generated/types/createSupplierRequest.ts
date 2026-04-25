@@ -12,6 +12,5 @@ export interface CreateSupplierRequest {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
-  discountPercent: number;
   notes?: string | null;
 }

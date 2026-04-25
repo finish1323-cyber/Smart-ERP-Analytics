@@ -94,3 +94,22 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+### `artifacts/smart-erp` (`@workspace/smart-erp`)
+
+نظام إدارة موارد المؤسسة الذكي (Smart ERP & BI) باللغة العربية RTL. React + Vite + TypeScript مع shadcn/ui + Tailwind. يستهلك `@workspace/api-client-react` للـ React Query hooks المُولّدة.
+
+سبع وحدات: لوحة التحكم، CRM، المخزون، المبيعات، المشتريات، التقارير، المهام، الإعدادات.
+
+**ميزات المشتريات (Purchases):**
+- ربط منتج-مورد في جدول `supplierProductsTable` مع آخر سعر توريد وتاريخه (يتم upsert تلقائياً عند استلام أمر شراء)
+- صفحة "أفضل الأسعار" `/best-prices` — جدول مقارنة لأقل سعر لكل منتج عبر الموردين (CTE في الباك)
+- في موديل أمر الشراء: فلتر منتجات حسب المورد + Switch للتبديل، تعبئة سعر تلقائي من `lastSupplyPrice` أو `costPrice`
+- صفحة طباعة A4 للأمر `/print/po/:id` (تستخدم `window.print()` مع شعار الشركة)
+- بيانات شركة + رفع شعار base64 عبر صفحة الإعدادات `/settings`
+- استيراد/تصدير الموردين CSV (مع UTF-8 BOM) وأوامر الشراء CSV
+- فلاتر بحث (نص، مورد، تاريخ من/إلى) في صفحة أوامر الشراء
+- تبويب "المنتجات" داخل ملف المورد لربط/فك ربط المنتجات
+- تم الإبقاء على خصم لكل أمر شراء (per-PO) — حقل `discountPercent` على الموردين موجود في DB لكن غير مستخدم
+
+**Endpoints رئيسية**: `/api/supplier-products` (CRUD + by-supplier + by-product + best-prices), `/api/suppliers/bulk-import`, `/api/company` (PUT للشعار/البيانات), `/api/purchase-orders/:id/receive` (يحدث supplier-products).
