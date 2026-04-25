@@ -19,8 +19,9 @@ router.get("/", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, requireRole("admin", "procurement"), async (req, res) => {
   try {
-    const { name, contactPerson, phone, email, address, discountPercent, notes } = req.body;
+    const { name, contactPerson, phone, email, address, notes } = req.body;
     if (!name) { res.status(400).json({ error: "Bad Request", message: "اسم المورد مطلوب" }); return; }
+    const discountPercent = 0;
     const inserted = await db.insert(suppliersTable).values({
       companyId: req.companyId!,
       name,
@@ -54,9 +55,9 @@ router.get("/:id", requireAuth, async (req, res) => {
 router.put("/:id", requireAuth, requireRole("admin", "procurement"), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    const { name, contactPerson, phone, email, address, discountPercent, notes } = req.body;
+    const { name, contactPerson, phone, email, address, notes } = req.body;
     const updated = await db.update(suppliersTable)
-      .set({ name, contactPerson, phone, email, address, discountPercent, notes })
+      .set({ name, contactPerson, phone, email, address, notes })
       .where(and(eq(suppliersTable.id, id), eq(suppliersTable.companyId, req.companyId!)))
       .returning();
     if (!updated.length) { res.status(404).json({ error: "Not found" }); return; }

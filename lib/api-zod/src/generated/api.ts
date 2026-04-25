@@ -495,6 +495,10 @@ export const ListPurchaseOrdersResponse = zod.array(
  */
 export const CreatePurchaseOrderBody = zod.object({
   supplierId: zod.number(),
+  discountPercent: zod
+    .number()
+    .optional()
+    .describe("نسبة الخصم على هذا الأمر (يحددها المستخدم)"),
   taxPercent: zod.number().optional(),
   notes: zod.string().nullish(),
   items: zod.array(

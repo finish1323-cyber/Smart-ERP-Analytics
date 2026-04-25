@@ -9,6 +9,8 @@ import type { PurchaseOrderItemRequest } from "./purchaseOrderItemRequest";
 
 export interface CreatePurchaseOrderRequest {
   supplierId: number;
+  /** نسبة الخصم على هذا الأمر (يحددها المستخدم) */
+  discountPercent?: number;
   taxPercent?: number;
   notes?: string | null;
   items: PurchaseOrderItemRequest[];

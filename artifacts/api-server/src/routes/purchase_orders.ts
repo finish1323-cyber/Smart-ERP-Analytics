@@ -48,7 +48,7 @@ router.get("/", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, requireRole("admin", "procurement"), async (req, res) => {
   try {
-    const { supplierId, taxPercent, notes, items } = req.body;
+    const { supplierId, discountPercent, taxPercent, notes, items } = req.body;
     if (!supplierId || !items?.length) {
       res.status(400).json({ error: "Bad Request", message: "المورد والأصناف مطلوبان" });
       return;
@@ -56,7 +56,7 @@ router.post("/", requireAuth, requireRole("admin", "procurement"), async (req, r
 
     const supplier = await db.select().from(suppliersTable).where(eq(suppliersTable.id, supplierId)).limit(1);
     if (!supplier.length) { res.status(404).json({ error: "Supplier not found" }); return; }
-    const disc = parseFloat(supplier[0].discountPercent as any);
+    const disc = Math.max(0, Math.min(100, parseFloat(discountPercent ?? 0) || 0));
 
     let total = 0;
     const itemValues: any[] = [];

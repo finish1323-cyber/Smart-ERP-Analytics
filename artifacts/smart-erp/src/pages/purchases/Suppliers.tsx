@@ -55,7 +55,6 @@ type SupplierFormData = {
   phone: string
   email: string
   address: string
-  discountPercent: string
   notes: string
 }
 
@@ -65,7 +64,6 @@ const emptyForm: SupplierFormData = {
   phone: "",
   email: "",
   address: "",
-  discountPercent: "0",
   notes: "",
 }
 
@@ -107,7 +105,6 @@ export function Suppliers() {
       phone: s.phone ?? "",
       email: s.email ?? "",
       address: s.address ?? "",
-      discountPercent: String(s.discountPercent ?? 0),
       notes: s.notes ?? "",
     })
     setShowForm(true)
@@ -126,7 +123,6 @@ export function Suppliers() {
         phone: form.phone || undefined,
         email: form.email || undefined,
         address: form.address || undefined,
-        discountPercent: parseFloat(form.discountPercent) || 0,
         notes: form.notes || undefined,
       }
       if (editingSupplier) {
@@ -198,12 +194,6 @@ export function Suppliers() {
                 {viewingSupplier.contactPerson && (
                   <p className="text-muted-foreground text-sm mt-1">{viewingSupplier.contactPerson}</p>
                 )}
-                {(viewingSupplier.discountPercent && parseFloat(String(viewingSupplier.discountPercent)) > 0) ? (
-                  <Badge className="mt-3 bg-emerald-100 text-emerald-700 border-emerald-200">
-                    <Percent className="w-3 h-3 ml-1" />
-                    خصم {viewingSupplier.discountPercent}%
-                  </Badge>
-                ) : null}
               </CardContent>
             </Card>
 
@@ -335,7 +325,7 @@ export function Suppliers() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
@@ -344,17 +334,6 @@ export function Suppliers() {
             <div>
               <p className="text-2xl font-bold">{suppliers.length}</p>
               <p className="text-xs text-muted-foreground">إجمالي الموردين</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-200 text-emerald-700 flex items-center justify-center">
-              <Percent className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{suppliers.filter((s: Supplier) => parseFloat(String(s.discountPercent ?? 0)) > 0).length}</p>
-              <p className="text-xs text-muted-foreground">موردون بخصم</p>
             </div>
           </div>
         </Card>
@@ -395,7 +374,6 @@ export function Suppliers() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((s: Supplier) => {
             const stats = getSupplierStats(s.id)
-            const disc = parseFloat(String(s.discountPercent ?? 0))
             return (
               <Card
                 key={s.id}
@@ -416,11 +394,6 @@ export function Suppliers() {
                       )}
                     </div>
                   </div>
-                  {disc > 0 && (
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs shrink-0">
-                      <Percent className="w-3 h-3 ml-1" />{disc}%
-                    </Badge>
-                  )}
                 </div>
 
                 <div className="space-y-1.5 mb-4">
@@ -506,31 +479,15 @@ export function Suppliers() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-semibold mb-1.5 block">البريد الإلكتروني</label>
-                <Input
-                  type="email"
-                  placeholder="example@email.com"
-                  dir="ltr"
-                  value={form.email}
-                  onChange={e => setForm({ ...form, email: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold mb-1.5 block flex items-center gap-1">
-                  <Percent className="w-3.5 h-3.5 text-emerald-600" /> نسبة الخصم الثابتة %
-                </label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  placeholder="0"
-                  value={form.discountPercent}
-                  onChange={e => setForm({ ...form, discountPercent: e.target.value })}
-                />
-              </div>
+            <div>
+              <label className="text-sm font-semibold mb-1.5 block">البريد الإلكتروني</label>
+              <Input
+                type="email"
+                placeholder="example@email.com"
+                dir="ltr"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+              />
             </div>
 
             <div>

@@ -1568,6 +1568,9 @@ components:
       properties:
         supplierId:
           type: integer
+        discountPercent:
+          type: number
+          description: نسبة الخصم على هذا الأمر (يحددها المستخدم)
         taxPercent:
           type: number
         notes:

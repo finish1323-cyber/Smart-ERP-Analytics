@@ -93,6 +93,7 @@ export function PurchaseOrders() {
   const [addProductId, setAddProductId] = useState<string>("")
   const [addQty, setAddQty] = useState("1")
   const [addPrice, setAddPrice] = useState("")
+  const [discountPercent, setDiscountPercent] = useState("0")
   const [taxPercent, setTaxPercent] = useState("0")
   const [poNotes, setPoNotes] = useState("")
 
@@ -113,7 +114,7 @@ export function PurchaseOrders() {
     [suppliers, selectedSupplierId]
   )
 
-  const supplierDiscount = parseFloat(String(selectedSupplier?.discountPercent ?? 0))
+  const discountValue = Math.max(0, Math.min(100, parseFloat(discountPercent) || 0))
 
   const addToCart = () => {
     const pid = parseInt(addProductId)
@@ -159,7 +160,7 @@ export function PurchaseOrders() {
     setCart(cart.map(c => c.productId === pid ? { ...c, unitPrice: parseFloat(price) || 0 } : c))
 
   const subtotal = cart.reduce((s, c) => s + c.unitPrice * c.orderedQuantity, 0)
-  const discountAmount = subtotal * (supplierDiscount / 100)
+  const discountAmount = subtotal * (discountValue / 100)
   const afterDiscount = subtotal - discountAmount
   const taxAmount = afterDiscount * (parseFloat(taxPercent) / 100)
   const netTotal = afterDiscount + taxAmount
@@ -174,6 +175,7 @@ export function PurchaseOrders() {
       await createMutation.mutateAsync({
         data: {
           supplierId: selectedSupplierId,
+          discountPercent: discountValue,
           taxPercent: parseFloat(taxPercent),
           notes: poNotes || undefined,
           items: cart.map(c => ({
@@ -201,6 +203,7 @@ export function PurchaseOrders() {
     setAddProductId("")
     setAddQty("1")
     setAddPrice("")
+    setDiscountPercent("0")
     setTaxPercent("0")
     setPoNotes("")
   }
@@ -462,25 +465,11 @@ export function PurchaseOrders() {
                 <SelectContent>
                   {suppliers.map((s: any) => (
                     <SelectItem key={s.id} value={s.id.toString()}>
-                      <span className="flex items-center gap-2">
-                        {s.name}
-                        {parseFloat(s.discountPercent) > 0 && (
-                          <Badge className="bg-emerald-100 text-emerald-700 text-xs border-none">
-                            خصم {s.discountPercent}%
-                          </Badge>
-                        )}
-                      </span>
+                      {s.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-
-              {selectedSupplier && supplierDiscount > 0 && (
-                <div className="mt-2 flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-                  <Percent className="w-4 h-4 shrink-0" />
-                  سيتم تطبيق خصم <strong>{supplierDiscount}%</strong> تلقائياً على هذا الأمر
-                </div>
-              )}
             </div>
 
             {/* Step 2: Add Products */}
@@ -595,9 +584,24 @@ export function PurchaseOrders() {
                 <div>
                   <label className="text-sm font-bold mb-2 block flex items-center gap-1.5">
                     <span className="w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center">3</span>
-                    الضريبة والملاحظات
+                    الخصم والضريبة
                   </label>
                   <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block flex items-center gap-1">
+                        <Percent className="w-3 h-3 text-emerald-600" /> نسبة الخصم على هذا الأمر %
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={discountPercent}
+                        onChange={e => setDiscountPercent(e.target.value)}
+                        placeholder="0"
+                        className="bg-white"
+                      />
+                    </div>
                     <div>
                       <label className="text-xs text-muted-foreground mb-1 block">نسبة الضريبة %</label>
                       <Input
@@ -633,9 +637,9 @@ export function PurchaseOrders() {
                     <span className="text-muted-foreground">المجموع الفرعي</span>
                     <span className="font-semibold">{formatCurrency(subtotal)}</span>
                   </div>
-                  {supplierDiscount > 0 && (
+                  {discountValue > 0 && (
                     <div className="flex justify-between text-sm text-emerald-600">
-                      <span>خصم المورد ({supplierDiscount}%)</span>
+                      <span>خصم ({discountValue}%)</span>
                       <span className="font-semibold">-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
