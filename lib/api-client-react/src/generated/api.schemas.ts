@@ -681,6 +681,171 @@ export interface PriceFluctuationEntry {
   totalChangePercent: number;
 }
 
+export interface Safe {
+  id: number;
+  companyId: number;
+  name: string;
+  initialBalance: string;
+  currentBalance: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface CreateSafeRequest {
+  name: string;
+  initialBalance?: number;
+  notes?: string;
+}
+
+export type FinancialTransactionType =
+  (typeof FinancialTransactionType)[keyof typeof FinancialTransactionType];
+
+export const FinancialTransactionType = {
+  in: "in",
+  out: "out",
+} as const;
+
+export type FinancialTransactionCategory =
+  (typeof FinancialTransactionCategory)[keyof typeof FinancialTransactionCategory];
+
+export const FinancialTransactionCategory = {
+  purchase_payment: "purchase_payment",
+  sale_receipt: "sale_receipt",
+  expense: "expense",
+  income: "income",
+  other: "other",
+} as const;
+
+export interface FinancialTransaction {
+  id: number;
+  companyId: number;
+  safeId?: number | null;
+  safeName?: string | null;
+  type: FinancialTransactionType;
+  category: FinancialTransactionCategory;
+  amount: string;
+  description: string;
+  supplierId?: number | null;
+  supplierName?: string | null;
+  customerId?: number | null;
+  purchaseOrderId?: number | null;
+  saleInvoiceId?: number | null;
+  transactionDate: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type CreateFinancialTransactionRequestType =
+  (typeof CreateFinancialTransactionRequestType)[keyof typeof CreateFinancialTransactionRequestType];
+
+export const CreateFinancialTransactionRequestType = {
+  in: "in",
+  out: "out",
+} as const;
+
+export type CreateFinancialTransactionRequestCategory =
+  (typeof CreateFinancialTransactionRequestCategory)[keyof typeof CreateFinancialTransactionRequestCategory];
+
+export const CreateFinancialTransactionRequestCategory = {
+  purchase_payment: "purchase_payment",
+  sale_receipt: "sale_receipt",
+  expense: "expense",
+  income: "income",
+  other: "other",
+} as const;
+
+export interface CreateFinancialTransactionRequest {
+  safeId?: number;
+  type: CreateFinancialTransactionRequestType;
+  category: CreateFinancialTransactionRequestCategory;
+  amount: number;
+  description: string;
+  supplierId?: number;
+  customerId?: number;
+  purchaseOrderId?: number;
+  saleInvoiceId?: number;
+  transactionDate: string;
+  notes?: string;
+}
+
+export type FinancialSummarySafesItem = {
+  id: number;
+  name: string;
+  balance: string;
+};
+
+export interface FinancialSummary {
+  totalIn: string;
+  totalOut: string;
+  net: string;
+  safes: FinancialSummarySafesItem[];
+}
+
+export type PaymentInstallmentStatus =
+  (typeof PaymentInstallmentStatus)[keyof typeof PaymentInstallmentStatus];
+
+export const PaymentInstallmentStatus = {
+  pending: "pending",
+  partial: "partial",
+  paid: "paid",
+  overdue: "overdue",
+} as const;
+
+export interface PaymentInstallment {
+  id: number;
+  companyId: number;
+  purchaseOrderId: number;
+  amount: string;
+  dueDate: string;
+  paidAmount: string;
+  status: PaymentInstallmentStatus;
+  notes?: string | null;
+  transactionId?: number | null;
+  createdAt: string;
+}
+
+export type CreateInstallmentsRequestInstallmentsItem = {
+  amount: number;
+  dueDate: string;
+  notes?: string;
+};
+
+export interface CreateInstallmentsRequest {
+  purchaseOrderId: number;
+  installments: CreateInstallmentsRequestInstallmentsItem[];
+}
+
+export interface PayInstallmentRequest {
+  safeId?: number;
+  amount?: number;
+  notes?: string;
+}
+
+export type SupplierStatementEntriesItemType =
+  (typeof SupplierStatementEntriesItemType)[keyof typeof SupplierStatementEntriesItemType];
+
+export const SupplierStatementEntriesItemType = {
+  purchase: "purchase",
+  payment: "payment",
+} as const;
+
+export type SupplierStatementEntriesItem = {
+  date: string;
+  type: SupplierStatementEntriesItemType;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+};
+
+export interface SupplierStatement {
+  supplier: Supplier;
+  totalPurchases: string;
+  totalPaid: string;
+  balance: string;
+  entries: SupplierStatementEntriesItem[];
+}
+
 export type BulkImportSuppliersBody = {
   suppliers: CreateSupplierRequest[];
 };
@@ -779,4 +944,53 @@ export const GetTopSellingReportPeriod = {
   week: "week",
   month: "month",
   year: "year",
+} as const;
+
+export type ListFinancialTransactionsParams = {
+  type?: ListFinancialTransactionsType;
+  category?: ListFinancialTransactionsCategory;
+  safeId?: number;
+  supplierId?: number;
+  customerId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type ListFinancialTransactionsType =
+  (typeof ListFinancialTransactionsType)[keyof typeof ListFinancialTransactionsType];
+
+export const ListFinancialTransactionsType = {
+  in: "in",
+  out: "out",
+} as const;
+
+export type ListFinancialTransactionsCategory =
+  (typeof ListFinancialTransactionsCategory)[keyof typeof ListFinancialTransactionsCategory];
+
+export const ListFinancialTransactionsCategory = {
+  purchase_payment: "purchase_payment",
+  sale_receipt: "sale_receipt",
+  expense: "expense",
+  income: "income",
+  other: "other",
+} as const;
+
+export type GetFinancialSummaryParams = {
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type ListInstallmentsParams = {
+  purchaseOrderId?: number;
+  status?: ListInstallmentsStatus;
+};
+
+export type ListInstallmentsStatus =
+  (typeof ListInstallmentsStatus)[keyof typeof ListInstallmentsStatus];
+
+export const ListInstallmentsStatus = {
+  pending: "pending",
+  partial: "partial",
+  paid: "paid",
+  overdue: "overdue",
 } as const;

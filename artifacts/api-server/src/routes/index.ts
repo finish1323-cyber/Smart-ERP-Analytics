@@ -13,6 +13,8 @@ import tasksRouter from "./tasks";
 import dashboardRouter from "./dashboard";
 import auditLogsRouter from "./audit_logs";
 import reportsRouter from "./reports";
+import safesRouter from "./safes";
+import financialTransactionsRouter from "./financial_transactions";
 
 const router: IRouter = Router();
 
@@ -31,5 +33,7 @@ router.use("/sales-targets", tasksRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/audit-logs", auditLogsRouter);
 router.use("/reports", reportsRouter);
+router.use("/safes", safesRouter);
+router.use("/financial-transactions", financialTransactionsRouter);
 
 export default router;

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { purchaseOrdersTable, purchaseOrderItemsTable, productsTable, suppliersTable, stockMovementsTable, priceHistoryTable, tasksTable, supplierProductsTable } from "@workspace/db";
+import { purchaseOrdersTable, purchaseOrderItemsTable, productsTable, suppliersTable, stockMovementsTable, priceHistoryTable, tasksTable, supplierProductsTable, paymentInstallmentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { logActivity } from "../lib/audit";
@@ -48,7 +48,7 @@ router.get("/", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, requireRole("admin", "procurement"), async (req, res) => {
   try {
-    const { supplierId, discountPercent, taxPercent, notes, items } = req.body;
+    const { supplierId, discountPercent, taxPercent, notes, items, paymentType, installments } = req.body;
     if (!supplierId || !items?.length) {
       res.status(400).json({ error: "Bad Request", message: "المورد والأصناف مطلوبان" });
       return;
@@ -86,6 +86,7 @@ router.post("/", requireAuth, requireRole("admin", "procurement"), async (req, r
       discountPercent: disc.toString(),
       taxPercent: tax.toString(),
       netAmount: net.toFixed(2),
+      paymentType: paymentType ?? "cash",
       notes,
       createdByUserId: req.userId,
     }).returning();
@@ -94,6 +95,17 @@ router.post("/", requireAuth, requireRole("admin", "procurement"), async (req, r
     const poItems = await db.insert(purchaseOrderItemsTable).values(
       itemValues.map(v => ({ ...v, purchaseOrderId: po.id }))
     ).returning();
+
+    if (paymentType === "deferred" && Array.isArray(installments) && installments.length > 0) {
+      await db.insert(paymentInstallmentsTable).values(
+        installments.map((i: any) => ({
+          companyId: req.companyId!,
+          purchaseOrderId: po.id,
+          amount: String(i.amount),
+          dueDate: i.dueDate,
+        }))
+      );
+    }
 
     await logActivity({ companyId: req.companyId, userId: req.userId, description: `تم إنشاء أمر شراء رقم ${orderNumber}` });
     res.status(201).json({

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { suppliersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { suppliersTable, purchaseOrdersTable, purchaseOrderItemsTable, financialTransactionsTable } from "@workspace/db";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middlewares/auth";
 import { logActivity } from "../lib/audit";
 
@@ -64,6 +64,72 @@ router.put("/:id", requireAuth, requireRole("admin", "procurement"), async (req,
     res.json(updated[0]);
   } catch (err) {
     req.log.error({ err }, "Update supplier error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/:id/statement", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const supplier = await db.select().from(suppliersTable)
+      .where(and(eq(suppliersTable.id, id), eq(suppliersTable.companyId, req.companyId!)))
+      .limit(1);
+    if (!supplier.length) { res.status(404).json({ error: "Not found" }); return; }
+
+    const pos = await db.select().from(purchaseOrdersTable)
+      .where(and(eq(purchaseOrdersTable.supplierId, id), eq(purchaseOrdersTable.companyId, req.companyId!)))
+      .orderBy(desc(purchaseOrdersTable.createdAt));
+
+    const payments = await db.select().from(financialTransactionsTable)
+      .where(and(
+        eq(financialTransactionsTable.supplierId, id),
+        eq(financialTransactionsTable.companyId, req.companyId!),
+        eq(financialTransactionsTable.type, "out"),
+      ))
+      .orderBy(desc(financialTransactionsTable.transactionDate));
+
+    const totalPurchases = pos.reduce((s, p) => s + parseFloat(p.netAmount ?? "0"), 0);
+    const totalPaid = payments.reduce((s, t) => s + parseFloat(t.amount ?? "0"), 0);
+
+    const entries: Array<{
+      date: string; type: "purchase" | "payment"; description: string;
+      debit: number; credit: number; balance: number;
+    }> = [];
+
+    const allEvents = [
+      ...pos.map(p => ({
+        date: p.createdAt.toISOString().slice(0, 10),
+        type: "purchase" as const,
+        description: `أمر شراء #${p.orderNumber}`,
+        debit: parseFloat(p.netAmount ?? "0"),
+        credit: 0,
+        ref: p.createdAt.getTime(),
+      })),
+      ...payments.map(t => ({
+        date: typeof t.transactionDate === "string" ? t.transactionDate : (t.transactionDate as Date).toISOString().slice(0, 10),
+        type: "payment" as const,
+        description: t.description,
+        debit: 0,
+        credit: parseFloat(t.amount ?? "0"),
+        ref: new Date(t.createdAt).getTime(),
+      })),
+    ].sort((a, b) => a.ref - b.ref);
+
+    let running = 0;
+    for (const e of allEvents) {
+      running += e.debit - e.credit;
+      entries.push({ date: e.date, type: e.type, description: e.description, debit: e.debit, credit: e.credit, balance: running });
+    }
+
+    res.json({
+      supplier: supplier[0],
+      totalPurchases: totalPurchases.toFixed(2),
+      totalPaid: totalPaid.toFixed(2),
+      balance: (totalPurchases - totalPaid).toFixed(2),
+      entries,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Supplier statement error");
     res.status(500).json({ error: "Server error" });
   }
 });

@@ -104,6 +104,9 @@ export function PurchaseOrders() {
   const [discountPercent, setDiscountPercent] = useState("0")
   const [taxPercent, setTaxPercent] = useState("0")
   const [poNotes, setPoNotes] = useState("")
+  const [paymentType, setPaymentType] = useState<"cash" | "deferred">("cash")
+  const [installments, setInstallments] = useState<{ amount: string; dueDate: string }[]>([])
+  const [installmentCount, setInstallmentCount] = useState("1")
 
   // Receipt state
   const [receiveAmounts, setReceiveAmounts] = useState<Record<number, string>>({})
@@ -205,6 +208,8 @@ export function PurchaseOrders() {
           discountPercent: discountValue,
           taxPercent: parseFloat(taxPercent),
           notes: poNotes || undefined,
+          paymentType,
+          installments: paymentType === "deferred" ? installments.map(i => ({ amount: parseFloat(i.amount), dueDate: i.dueDate })) : undefined,
           items: cart.map(c => ({
             productId: c.productId,
             orderedQuantity: c.orderedQuantity,
@@ -233,6 +238,24 @@ export function PurchaseOrders() {
     setDiscountPercent("0")
     setTaxPercent("0")
     setPoNotes("")
+    setPaymentType("cash")
+    setInstallments([])
+    setInstallmentCount("1")
+  }
+
+  const buildInstallments = (count: number, total: number) => {
+    if (count < 1) return []
+    const base = Math.floor((total / count) * 100) / 100
+    const arr = []
+    let remaining = total
+    for (let i = 0; i < count; i++) {
+      const amt = i === count - 1 ? remaining : base
+      const due = new Date()
+      due.setMonth(due.getMonth() + i + 1)
+      arr.push({ amount: amt.toFixed(2), dueDate: due.toISOString().slice(0, 10) })
+      remaining = Math.round((remaining - amt) * 100) / 100
+    }
+    return arr
   }
 
   const openReceive = (id: number) => {
@@ -746,6 +769,50 @@ export function PurchaseOrders() {
                         className="bg-white"
                       />
                     </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">نوع الدفع</label>
+                      <Select value={paymentType} onValueChange={v => { setPaymentType(v as "cash"|"deferred"); if (v === "deferred") setInstallments(buildInstallments(parseInt(installmentCount) || 1, netTotal)) }}>
+                        <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">كاش — دفع فوري</SelectItem>
+                          <SelectItem value="deferred">آجل — دفع مؤجل</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {paymentType === "deferred" && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">عدد الأقساط</label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="24"
+                            value={installmentCount}
+                            className="w-24 bg-white"
+                            onChange={e => {
+                              setInstallmentCount(e.target.value)
+                              setInstallments(buildInstallments(parseInt(e.target.value) || 1, netTotal))
+                            }}
+                          />
+                          <Button size="sm" variant="outline" type="button" onClick={() => setInstallments(buildInstallments(parseInt(installmentCount) || 1, netTotal))}>
+                            توزيع تلقائي
+                          </Button>
+                        </div>
+                        {installments.length > 0 && (
+                          <div className="mt-2 space-y-2">
+                            {installments.map((inst, i) => (
+                              <div key={i} className="flex gap-2 items-center">
+                                <span className="text-xs text-muted-foreground w-16">قسط {i+1}</span>
+                                <Input type="number" min="0" step="0.01" value={inst.amount} className="w-28 h-8 text-xs bg-white"
+                                  onChange={e => setInstallments(installments.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} />
+                                <Input type="date" value={inst.dueDate} className="h-8 text-xs bg-white flex-1"
+                                  onChange={e => setInstallments(installments.map((x, j) => j === i ? { ...x, dueDate: e.target.value } : x))} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

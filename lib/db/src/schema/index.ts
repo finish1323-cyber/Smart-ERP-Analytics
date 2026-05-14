@@ -8,3 +8,6 @@ export * from "./customers";
 export * from "./sales";
 export * from "./tasks";
 export * from "./audit_logs";
+export * from "./safes";
+export * from "./financial_transactions";
+export * from "./payment_installments";

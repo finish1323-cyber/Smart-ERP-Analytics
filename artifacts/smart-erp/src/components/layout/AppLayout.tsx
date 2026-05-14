@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter"
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, 
   FileText, CheckSquare, BarChart, Settings, LogOut, Search, Bell,
-  Building2, ChevronDown, ChevronLeft
+  Building2, ChevronDown, ChevronLeft, Wallet
 } from "lucide-react"
 import { useGetCurrentUser, useLogout } from "@workspace/api-client-react"
 import { cn } from "@/lib/utils"
@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
       { icon: FileText, label: "أوامر الشراء", href: "/purchases" },
       { icon: Building2, label: "الموردون", href: "/suppliers" },
       { icon: BarChart, label: "أفضل الأسعار", href: "/best-prices" },
+      { icon: Wallet, label: "المدفوعات والمصاريف", href: "/payments" },
     ]
   },
   { icon: Package, label: "المخزن والمنتجات", href: "/inventory" },

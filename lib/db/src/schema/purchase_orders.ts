@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, numeric, timestamp, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { companiesTable } from "./companies";
@@ -15,6 +15,9 @@ export const purchaseOrdersTable = pgTable("purchase_orders", {
   discountPercent: numeric("discount_percent", { precision: 5, scale: 2 }).notNull().default("0"),
   taxPercent: numeric("tax_percent", { precision: 5, scale: 2 }).notNull().default("0"),
   netAmount: numeric("net_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  paymentType: text("payment_type", { enum: ["cash", "deferred"] }).notNull().default("cash"),
+  paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  paymentDueDate: date("payment_due_date"),
   notes: text("notes"),
   createdByUserId: integer("created_by_user_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

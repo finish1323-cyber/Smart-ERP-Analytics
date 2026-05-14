@@ -10,6 +10,7 @@ import {
   useListProductsBySupplier,
   useLinkSupplierProduct,
   useUnlinkSupplierProduct,
+  useGetSupplierStatement,
 } from "@workspace/api-client-react"
 import { downloadCSV, parseCSV } from "@/lib/csv"
 import {
@@ -106,6 +107,10 @@ export function Suppliers() {
     viewingSupplier?.id ?? 0,
     { query: { enabled: !!viewingSupplier } }
   )
+  const { data: statement } = useGetSupplierStatement(
+    viewingSupplier?.id ?? 0,
+    { query: { enabled: !!viewingSupplier } }
+  ) as any
 
   // Add product to supplier dialog state
   const [addProductOpen, setAddProductOpen] = useState(false)
@@ -153,8 +158,9 @@ export function Suppliers() {
         notes: form.notes || undefined,
       }
       if (editingSupplier) {
-        await updateMutation.mutateAsync({ id: editingSupplier.id, data: payload as any })
+        const updated = await updateMutation.mutateAsync({ id: editingSupplier.id, data: payload as any })
         toast({ title: "تم التحديث", description: "تم تحديث بيانات المورد بنجاح" })
+        if (viewingSupplier?.id === editingSupplier.id) setViewingSupplier(updated as any)
       } else {
         await createMutation.mutateAsync({ data: payload as any })
         toast({ title: "تمت الإضافة", description: "تم إضافة المورد بنجاح" })
@@ -411,6 +417,9 @@ export function Suppliers() {
                     <TabsTrigger value="orders" className="gap-2 data-[state=active]:bg-white">
                       <ShoppingCart className="w-4 h-4" /> سجل الأوامر ({recentOrders.length})
                     </TabsTrigger>
+                    <TabsTrigger value="statement" className="gap-2 data-[state=active]:bg-white">
+                      <History className="w-4 h-4" /> كشف الحساب
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="products" className="p-5 m-0">
@@ -503,6 +512,66 @@ export function Suppliers() {
                             </div>
                           )
                         })}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="statement" className="p-5 m-0">
+                    {!statement ? (
+                      <div className="text-center py-10 text-muted-foreground">جاري التحميل...</div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Summary Row */}
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="rounded-xl bg-red-50 border border-red-100 p-3 text-center">
+                            <p className="text-xs text-red-600 font-medium">إجمالي المشتريات</p>
+                            <p className="text-base font-bold text-red-700">{formatCurrency(statement.totalPurchases)}</p>
+                          </div>
+                          <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center">
+                            <p className="text-xs text-emerald-600 font-medium">إجمالي المدفوع</p>
+                            <p className="text-base font-bold text-emerald-700">{formatCurrency(statement.totalPaid)}</p>
+                          </div>
+                          <div className="rounded-xl bg-amber-50 border border-amber-100 p-3 text-center">
+                            <p className="text-xs text-amber-600 font-medium">الرصيد المستحق</p>
+                            <p className="text-base font-bold text-amber-700">{formatCurrency(statement.balance)}</p>
+                          </div>
+                        </div>
+
+                        {/* Statement Table */}
+                        {(statement.entries ?? []).length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <FileText className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                            <p>لا توجد تعاملات بعد</p>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border overflow-hidden">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted/40">
+                                <tr className="text-right">
+                                  <th className="p-2.5 font-semibold">التاريخ</th>
+                                  <th className="p-2.5 font-semibold">البيان</th>
+                                  <th className="p-2.5 font-semibold text-red-600">مدين</th>
+                                  <th className="p-2.5 font-semibold text-emerald-600">دائن</th>
+                                  <th className="p-2.5 font-semibold">الرصيد</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(statement.entries as any[]).map((e: any, i: number) => (
+                                  <tr key={i} className="border-t border-border/50 hover:bg-muted/20">
+                                    <td className="p-2.5 text-muted-foreground text-xs">{e.date}</td>
+                                    <td className="p-2.5 font-medium">{e.description}</td>
+                                    <td className="p-2.5 text-red-600 font-semibold">{e.debit > 0 ? formatCurrency(e.debit) : "-"}</td>
+                                    <td className="p-2.5 text-emerald-600 font-semibold">{e.credit > 0 ? formatCurrency(e.credit) : "-"}</td>
+                                    <td className="p-2.5 font-bold" style={{ color: e.balance > 0 ? "#d97706" : "#16a34a" }}>
+                                      {formatCurrency(Math.abs(e.balance))}
+                                      <span className="text-xs mr-1">{e.balance > 0 ? "مدين" : e.balance < 0 ? "دائن" : ""}</span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     )}
                   </TabsContent>

@@ -18,6 +18,7 @@ import { PrintPO } from "@/pages/purchases/PrintPO"
 import { SalesInvoices } from "@/pages/sales/SalesInvoices"
 import { Reports } from "@/pages/reports/Reports"
 import { Settings } from "@/pages/settings/Settings"
+import Payments from "@/pages/purchases/Payments"
 
 import { useGetCurrentUser } from "@workspace/api-client-react"
 
@@ -77,6 +78,7 @@ function Router() {
       <Route path="/purchases" component={() => <ProtectedRoute component={PurchaseOrders} />} />
       <Route path="/suppliers" component={() => <ProtectedRoute component={Suppliers} />} />
       <Route path="/best-prices" component={() => <ProtectedRoute component={BestPrices} />} />
+      <Route path="/payments" component={() => <ProtectedRoute component={Payments} />} />
       <Route path="/print/po/:id" component={PrintPO} />
       <Route path="/inventory" component={() => <ProtectedRoute component={Products} />} />
       <Route path="/inventory/products/:id" component={() => <ProtectedRoute component={ProductDetail} />} />

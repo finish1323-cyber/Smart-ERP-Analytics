@@ -1332,3 +1332,309 @@ export const GetSalesTargetsReportResponseItem = zod.object({
 export const GetSalesTargetsReportResponse = zod.array(
   GetSalesTargetsReportResponseItem,
 );
+
+/**
+ * @summary List all safes (treasury accounts)
+ */
+export const ListSafesResponseItem = zod.object({
+  id: zod.number(),
+  companyId: zod.number(),
+  name: zod.string(),
+  initialBalance: zod.string(),
+  currentBalance: zod.string(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+export const ListSafesResponse = zod.array(ListSafesResponseItem);
+
+/**
+ * @summary Create a new safe
+ */
+export const CreateSafeBody = zod.object({
+  name: zod.string(),
+  initialBalance: zod.number().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Update a safe
+ */
+export const UpdateSafeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSafeBody = zod.object({
+  name: zod.string(),
+  initialBalance: zod.number().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateSafeResponse = zod.object({
+  id: zod.number(),
+  companyId: zod.number(),
+  name: zod.string(),
+  initialBalance: zod.string(),
+  currentBalance: zod.string(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete a safe
+ */
+export const DeleteSafeParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteSafeResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Get supplier account statement
+ */
+export const GetSupplierStatementParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetSupplierStatementResponse = zod.object({
+  supplier: zod.object({
+    id: zod.number(),
+    companyId: zod.number(),
+    name: zod.string(),
+    contactPerson: zod.string().nullish(),
+    phone: zod.string().nullish(),
+    email: zod.string().nullish(),
+    address: zod.string().nullish(),
+    discountPercent: zod.number(),
+    notes: zod.string().nullish(),
+    createdAt: zod.date(),
+  }),
+  totalPurchases: zod.string(),
+  totalPaid: zod.string(),
+  balance: zod.string(),
+  entries: zod.array(
+    zod.object({
+      date: zod.date(),
+      type: zod.enum(["purchase", "payment"]),
+      description: zod.string(),
+      debit: zod.number(),
+      credit: zod.number(),
+      balance: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary List financial transactions with optional filters
+ */
+export const ListFinancialTransactionsQueryParams = zod.object({
+  type: zod.enum(["in", "out"]).optional(),
+  category: zod
+    .enum(["purchase_payment", "sale_receipt", "expense", "income", "other"])
+    .optional(),
+  safeId: zod.coerce.number().optional(),
+  supplierId: zod.coerce.number().optional(),
+  customerId: zod.coerce.number().optional(),
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
+});
+
+export const ListFinancialTransactionsResponseItem = zod.object({
+  id: zod.number(),
+  companyId: zod.number(),
+  safeId: zod.number().nullish(),
+  safeName: zod.string().nullish(),
+  type: zod.enum(["in", "out"]),
+  category: zod.enum([
+    "purchase_payment",
+    "sale_receipt",
+    "expense",
+    "income",
+    "other",
+  ]),
+  amount: zod.string(),
+  description: zod.string(),
+  supplierId: zod.number().nullish(),
+  supplierName: zod.string().nullish(),
+  customerId: zod.number().nullish(),
+  purchaseOrderId: zod.number().nullish(),
+  saleInvoiceId: zod.number().nullish(),
+  transactionDate: zod.date(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+export const ListFinancialTransactionsResponse = zod.array(
+  ListFinancialTransactionsResponseItem,
+);
+
+/**
+ * @summary Create a financial transaction
+ */
+export const CreateFinancialTransactionBody = zod.object({
+  safeId: zod.number().optional(),
+  type: zod.enum(["in", "out"]),
+  category: zod.enum([
+    "purchase_payment",
+    "sale_receipt",
+    "expense",
+    "income",
+    "other",
+  ]),
+  amount: zod.number(),
+  description: zod.string(),
+  supplierId: zod.number().optional(),
+  customerId: zod.number().optional(),
+  purchaseOrderId: zod.number().optional(),
+  saleInvoiceId: zod.number().optional(),
+  transactionDate: zod.date(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get financial summary (totals and safe balances)
+ */
+export const GetFinancialSummaryQueryParams = zod.object({
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
+});
+
+export const GetFinancialSummaryResponse = zod.object({
+  totalIn: zod.string(),
+  totalOut: zod.string(),
+  net: zod.string(),
+  safes: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      balance: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update a transaction
+ */
+export const UpdateFinancialTransactionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateFinancialTransactionBody = zod.object({
+  safeId: zod.number().optional(),
+  type: zod.enum(["in", "out"]),
+  category: zod.enum([
+    "purchase_payment",
+    "sale_receipt",
+    "expense",
+    "income",
+    "other",
+  ]),
+  amount: zod.number(),
+  description: zod.string(),
+  supplierId: zod.number().optional(),
+  customerId: zod.number().optional(),
+  purchaseOrderId: zod.number().optional(),
+  saleInvoiceId: zod.number().optional(),
+  transactionDate: zod.date(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateFinancialTransactionResponse = zod.object({
+  id: zod.number(),
+  companyId: zod.number(),
+  safeId: zod.number().nullish(),
+  safeName: zod.string().nullish(),
+  type: zod.enum(["in", "out"]),
+  category: zod.enum([
+    "purchase_payment",
+    "sale_receipt",
+    "expense",
+    "income",
+    "other",
+  ]),
+  amount: zod.string(),
+  description: zod.string(),
+  supplierId: zod.number().nullish(),
+  supplierName: zod.string().nullish(),
+  customerId: zod.number().nullish(),
+  purchaseOrderId: zod.number().nullish(),
+  saleInvoiceId: zod.number().nullish(),
+  transactionDate: zod.date(),
+  notes: zod.string().nullish(),
+  createdAt: zod.date(),
+});
+
+/**
+ * @summary Delete a transaction
+ */
+export const DeleteFinancialTransactionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteFinancialTransactionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary List payment installments
+ */
+export const ListInstallmentsQueryParams = zod.object({
+  purchaseOrderId: zod.coerce.number().optional(),
+  status: zod.enum(["pending", "partial", "paid", "overdue"]).optional(),
+});
+
+export const ListInstallmentsResponseItem = zod.object({
+  id: zod.number(),
+  companyId: zod.number(),
+  purchaseOrderId: zod.number(),
+  amount: zod.string(),
+  dueDate: zod.date(),
+  paidAmount: zod.string(),
+  status: zod.enum(["pending", "partial", "paid", "overdue"]),
+  notes: zod.string().nullish(),
+  transactionId: zod.number().nullish(),
+  createdAt: zod.date(),
+});
+export const ListInstallmentsResponse = zod.array(ListInstallmentsResponseItem);
+
+/**
+ * @summary Create installments for a purchase order (replaces existing)
+ */
+export const CreateInstallmentsBody = zod.object({
+  purchaseOrderId: zod.number(),
+  installments: zod.array(
+    zod.object({
+      amount: zod.number(),
+      dueDate: zod.date(),
+      notes: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
+ * @summary Mark an installment as paid and create a transaction
+ */
+export const PayInstallmentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PayInstallmentBody = zod.object({
+  safeId: zod.number().optional(),
+  amount: zod.number().optional(),
+  notes: zod.string().optional(),
+});
+
+export const PayInstallmentResponse = zod.object({
+  id: zod.number(),
+  companyId: zod.number(),
+  purchaseOrderId: zod.number(),
+  amount: zod.string(),
+  dueDate: zod.date(),
+  paidAmount: zod.string(),
+  status: zod.enum(["pending", "partial", "paid", "overdue"]),
+  notes: zod.string().nullish(),
+  transactionId: zod.number().nullish(),
+  createdAt: zod.date(),
+});

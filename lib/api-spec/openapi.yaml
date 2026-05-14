@@ -1280,6 +1280,299 @@ paths:
                 items:
                   $ref: "#/components/schemas/SalesTarget"
 
+  /safes:
+    get:
+      operationId: listSafes
+      tags: [safes]
+      summary: List all safes (treasury accounts)
+      responses:
+        "200":
+          description: List of safes with current balance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Safe"
+    post:
+      operationId: createSafe
+      tags: [safes]
+      summary: Create a new safe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSafeRequest"
+      responses:
+        "201":
+          description: Safe created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Safe"
+
+  /safes/{id}:
+    put:
+      operationId: updateSafe
+      tags: [safes]
+      summary: Update a safe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSafeRequest"
+      responses:
+        "200":
+          description: Safe updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Safe"
+    delete:
+      operationId: deleteSafe
+      tags: [safes]
+      summary: Delete a safe
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Safe deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /suppliers/{id}/statement:
+    get:
+      operationId: getSupplierStatement
+      tags: [suppliers]
+      summary: Get supplier account statement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Supplier account statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierStatement"
+
+  /financial-transactions:
+    get:
+      operationId: listFinancialTransactions
+      tags: [financialTransactions]
+      summary: List financial transactions with optional filters
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [in, out]
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [purchase_payment, sale_receipt, expense, income, other]
+        - name: safeId
+          in: query
+          schema:
+            type: integer
+        - name: supplierId
+          in: query
+          schema:
+            type: integer
+        - name: customerId
+          in: query
+          schema:
+            type: integer
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinancialTransaction"
+    post:
+      operationId: createFinancialTransaction
+      tags: [financialTransactions]
+      summary: Create a financial transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinancialTransactionRequest"
+      responses:
+        "201":
+          description: Transaction created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialTransaction"
+
+  /financial-transactions/summary:
+    get:
+      operationId: getFinancialSummary
+      tags: [financialTransactions]
+      summary: Get financial summary (totals and safe balances)
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Financial summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialSummary"
+
+  /financial-transactions/{id}:
+    put:
+      operationId: updateFinancialTransaction
+      tags: [financialTransactions]
+      summary: Update a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinancialTransactionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialTransaction"
+    delete:
+      operationId: deleteFinancialTransaction
+      tags: [financialTransactions]
+      summary: Delete a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /financial-transactions/installments:
+    get:
+      operationId: listInstallments
+      tags: [financialTransactions]
+      summary: List payment installments
+      parameters:
+        - name: purchaseOrderId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, partial, paid, overdue]
+      responses:
+        "200":
+          description: List of installments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentInstallment"
+    post:
+      operationId: createInstallments
+      tags: [financialTransactions]
+      summary: Create installments for a purchase order (replaces existing)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInstallmentsRequest"
+      responses:
+        "201":
+          description: Installments created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentInstallment"
+
+  /financial-transactions/installments/{id}/pay:
+    put:
+      operationId: payInstallment
+      tags: [financialTransactions]
+      summary: Mark an installment as paid and create a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayInstallmentRequest"
+      responses:
+        "200":
+          description: Installment paid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentInstallment"
+
 components:
   schemas:
     HealthStatus:
@@ -2367,3 +2660,230 @@ components:
         totalChangePercent:
           type: number
       required: [productId, productName, productCode, priceChangeCount, firstPrice, latestPrice, totalChangePercent]
+
+    Safe:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        name:
+          type: string
+        initialBalance:
+          type: string
+        currentBalance:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, companyId, name, initialBalance, currentBalance, createdAt]
+
+    CreateSafeRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        initialBalance:
+          type: number
+        notes:
+          type: string
+      required: [name]
+
+    FinancialTransaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        safeId:
+          type: integer
+          nullable: true
+        safeName:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [in, out]
+        category:
+          type: string
+          enum: [purchase_payment, sale_receipt, expense, income, other]
+        amount:
+          type: string
+        description:
+          type: string
+        supplierId:
+          type: integer
+          nullable: true
+        supplierName:
+          type: string
+          nullable: true
+        customerId:
+          type: integer
+          nullable: true
+        purchaseOrderId:
+          type: integer
+          nullable: true
+        saleInvoiceId:
+          type: integer
+          nullable: true
+        transactionDate:
+          type: string
+          format: date
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, companyId, type, category, amount, description, transactionDate, createdAt]
+
+    CreateFinancialTransactionRequest:
+      type: object
+      properties:
+        safeId:
+          type: integer
+        type:
+          type: string
+          enum: [in, out]
+        category:
+          type: string
+          enum: [purchase_payment, sale_receipt, expense, income, other]
+        amount:
+          type: number
+        description:
+          type: string
+        supplierId:
+          type: integer
+        customerId:
+          type: integer
+        purchaseOrderId:
+          type: integer
+        saleInvoiceId:
+          type: integer
+        transactionDate:
+          type: string
+          format: date
+        notes:
+          type: string
+      required: [type, category, amount, description, transactionDate]
+
+    FinancialSummary:
+      type: object
+      properties:
+        totalIn:
+          type: string
+        totalOut:
+          type: string
+        net:
+          type: string
+        safes:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              balance:
+                type: string
+            required: [id, name, balance]
+      required: [totalIn, totalOut, net, safes]
+
+    PaymentInstallment:
+      type: object
+      properties:
+        id:
+          type: integer
+        companyId:
+          type: integer
+        purchaseOrderId:
+          type: integer
+        amount:
+          type: string
+        dueDate:
+          type: string
+          format: date
+        paidAmount:
+          type: string
+        status:
+          type: string
+          enum: [pending, partial, paid, overdue]
+        notes:
+          type: string
+          nullable: true
+        transactionId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, companyId, purchaseOrderId, amount, dueDate, paidAmount, status, createdAt]
+
+    CreateInstallmentsRequest:
+      type: object
+      properties:
+        purchaseOrderId:
+          type: integer
+        installments:
+          type: array
+          items:
+            type: object
+            properties:
+              amount:
+                type: number
+              dueDate:
+                type: string
+                format: date
+              notes:
+                type: string
+            required: [amount, dueDate]
+      required: [purchaseOrderId, installments]
+
+    PayInstallmentRequest:
+      type: object
+      properties:
+        safeId:
+          type: integer
+        amount:
+          type: number
+        notes:
+          type: string
+
+    SupplierStatement:
+      type: object
+      properties:
+        supplier:
+          $ref: "#/components/schemas/Supplier"
+        totalPurchases:
+          type: string
+        totalPaid:
+          type: string
+        balance:
+          type: string
+        entries:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              type:
+                type: string
+                enum: [purchase, payment]
+              description:
+                type: string
+              debit:
+                type: number
+              credit:
+                type: number
+              balance:
+                type: number
+            required: [date, type, description, debit, credit, balance]
+      required: [supplier, totalPurchases, totalPaid, balance, entries]
