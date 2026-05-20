@@ -11,6 +11,8 @@ import {
   useLinkSupplierProduct,
   useUnlinkSupplierProduct,
   useGetSupplierStatement,
+  getListSuppliersQueryKey,
+  getGetSupplierStatementQueryKey,
 } from "@workspace/api-client-react"
 import { downloadCSV, parseCSV } from "@/lib/csv"
 import {
@@ -142,6 +144,12 @@ export function Suppliers() {
     setShowForm(true)
   }
 
+  const closeForm = () => {
+    setShowForm(false)
+    setEditingSupplier(null)
+    setForm(emptyForm)
+  }
+
   const handleSave = async () => {
     if (!form.name.trim()) {
       toast({ title: "خطأ", description: "اسم المورد مطلوب", variant: "destructive" })
@@ -160,13 +168,17 @@ export function Suppliers() {
       if (editingSupplier) {
         const updated = await updateMutation.mutateAsync({ id: editingSupplier.id, data: payload as any })
         toast({ title: "تم التحديث", description: "تم تحديث بيانات المورد بنجاح" })
+        // تحديث بيانات المورد المفتوح في لوحة التفاصيل بدون إغلاقها
         if (viewingSupplier?.id === editingSupplier.id) setViewingSupplier(updated as any)
+        // تحديث كشف الحساب المرتبط بهذا المورد
+        queryClient.invalidateQueries({ queryKey: getGetSupplierStatementQueryKey(editingSupplier.id) })
       } else {
         await createMutation.mutateAsync({ data: payload as any })
         toast({ title: "تمت الإضافة", description: "تم إضافة المورد بنجاح" })
       }
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] })
-      setShowForm(false)
+      // تحديث قائمة الموردين بالمفتاح الصحيح من Orval
+      queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() })
+      closeForm()
     } catch {
       toast({ title: "خطأ", description: "حدث خطأ أثناء الحفظ", variant: "destructive" })
     } finally {
@@ -179,7 +191,8 @@ export function Suppliers() {
     try {
       await deleteMutation.mutateAsync({ id: deletingId })
       toast({ title: "تم الحذف", description: "تم حذف المورد بنجاح" })
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] })
+      queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() })
+      if (viewingSupplier?.id === deletingId) setViewingSupplier(null)
     } catch {
       toast({ title: "خطأ", description: "لا يمكن حذف المورد", variant: "destructive" })
     } finally {
@@ -794,7 +807,7 @@ export function Suppliers() {
       )}
 
       {/* Add/Edit Dialog */}
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={open => { if (!open) closeForm() }}>
         <DialogContent className="sm:max-w-lg" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
@@ -869,7 +882,7 @@ export function Suppliers() {
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowForm(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={closeForm}>إلغاء</Button>
             <Button onClick={handleSave} disabled={saving} className="gap-2 min-w-[100px]">
               {saving ? (
                 <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> جاري الحفظ...</>
