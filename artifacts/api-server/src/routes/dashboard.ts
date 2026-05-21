@@ -1,10 +1,285 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { salesInvoicesTable, purchaseOrdersTable, customersTable, productsTable, priceHistoryTable, suppliersTable, salesInvoiceItemsTable, activityLogsTable } from "@workspace/db";
-import { eq, and, gte, sql, desc, lte } from "drizzle-orm";
+import {
+  salesInvoicesTable, purchaseOrdersTable, customersTable, productsTable,
+  priceHistoryTable, suppliersTable, salesInvoiceItemsTable, activityLogsTable,
+  tasksTable, usersTable,
+} from "@workspace/db";
+import { eq, and, gte, sql, desc, lte, asc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/auth";
 
 const router = Router();
+
+// ─── GET /dashboard/personal ────────────────────────────────────────────────
+router.get("/personal", requireAuth, async (req, res) => {
+  try {
+    const role = req.userRole!;
+    const companyId = req.companyId!;
+    const userId = req.userId!;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStr = today.toISOString().split("T")[0];
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const in3Days = new Date(today);
+    in3Days.setDate(in3Days.getDate() + 3);
+    const in3DaysStr = in3Days.toISOString().split("T")[0];
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    const result: Record<string, any> = { role };
+
+    // ── TASKS (all roles) ───────────────────────────────────────────────────
+    const activeTasksWhere = and(
+      eq(tasksTable.companyId, companyId),
+      sql`${tasksTable.status} NOT IN ('completed', 'cancelled')`,
+      sql`${tasksTable.dueDate} IS NOT NULL`
+    );
+    const myTasksWhere = role === "admin"
+      ? activeTasksWhere
+      : and(activeTasksWhere, eq(tasksTable.assignedToId, userId));
+
+    const overdueTasks = await db.select({
+      id: tasksTable.id,
+      title: tasksTable.title,
+      dueDate: tasksTable.dueDate,
+      priority: tasksTable.priority,
+      assigneeName: usersTable.name,
+    }).from(tasksTable)
+      .leftJoin(usersTable, eq(tasksTable.assignedToId, usersTable.id))
+      .where(and(myTasksWhere, sql`${tasksTable.dueDate} < ${todayStr}`))
+      .orderBy(asc(tasksTable.dueDate))
+      .limit(10);
+
+    const upcomingTasks = await db.select({
+      id: tasksTable.id,
+      title: tasksTable.title,
+      dueDate: tasksTable.dueDate,
+      priority: tasksTable.priority,
+      assigneeName: usersTable.name,
+    }).from(tasksTable)
+      .leftJoin(usersTable, eq(tasksTable.assignedToId, usersTable.id))
+      .where(and(
+        myTasksWhere,
+        sql`${tasksTable.dueDate} >= ${todayStr}`,
+        sql`${tasksTable.dueDate} <= ${in3DaysStr}`
+      ))
+      .orderBy(asc(tasksTable.dueDate))
+      .limit(10);
+
+    result.overdueTasks = overdueTasks;
+    result.upcomingTasks = upcomingTasks;
+
+    // ── ADMIN ────────────────────────────────────────────────────────────────
+    if (role === "admin") {
+      const [todaySalesRow] = await db.select({
+        total: sql<number>`COALESCE(SUM(net_amount::numeric), 0)`,
+      }).from(salesInvoicesTable)
+        .where(and(
+          eq(salesInvoicesTable.companyId, companyId),
+          eq(salesInvoicesTable.status, "confirmed"),
+          gte(salesInvoicesTable.createdAt, today)
+        ));
+
+      const [monthSalesRow] = await db.select({
+        total: sql<number>`COALESCE(SUM(net_amount::numeric), 0)`,
+      }).from(salesInvoicesTable)
+        .where(and(
+          eq(salesInvoicesTable.companyId, companyId),
+          eq(salesInvoicesTable.status, "confirmed"),
+          gte(salesInvoicesTable.createdAt, monthStart)
+        ));
+
+      result.todaySales = parseFloat(String(todaySalesRow.total));
+      result.monthSales = parseFloat(String(monthSalesRow.total));
+
+      // Low stock
+      result.lowStockProducts = await db.select({
+        id: productsTable.id,
+        name: productsTable.name,
+        code: productsTable.code,
+        currentQuantity: productsTable.currentQuantity,
+        safetyStock: productsTable.safetyStock,
+        unit: productsTable.unit,
+      }).from(productsTable)
+        .where(and(
+          eq(productsTable.companyId, companyId),
+          sql`${productsTable.currentQuantity}::numeric <= ${productsTable.safetyStock}::numeric`
+        ))
+        .orderBy(asc(productsTable.currentQuantity))
+        .limit(20);
+
+      // Pending POs
+      result.pendingPOs = await db.select({
+        id: purchaseOrdersTable.id,
+        orderNumber: purchaseOrdersTable.orderNumber,
+        supplierName: suppliersTable.name,
+        status: purchaseOrdersTable.status,
+        netAmount: purchaseOrdersTable.netAmount,
+        createdAt: purchaseOrdersTable.createdAt,
+        paymentDueDate: purchaseOrdersTable.paymentDueDate,
+      }).from(purchaseOrdersTable)
+        .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+        .where(and(eq(purchaseOrdersTable.companyId, companyId), eq(purchaseOrdersTable.status, "pending")))
+        .orderBy(desc(purchaseOrdersTable.createdAt))
+        .limit(10);
+
+      // Overdue deferred PO payments
+      result.overduePOPayments = await db.select({
+        id: purchaseOrdersTable.id,
+        orderNumber: purchaseOrdersTable.orderNumber,
+        supplierName: suppliersTable.name,
+        netAmount: purchaseOrdersTable.netAmount,
+        paymentDueDate: purchaseOrdersTable.paymentDueDate,
+      }).from(purchaseOrdersTable)
+        .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+        .where(and(
+          eq(purchaseOrdersTable.companyId, companyId),
+          eq(purchaseOrdersTable.paymentType, "deferred"),
+          sql`${purchaseOrdersTable.paymentDueDate} IS NOT NULL`,
+          sql`${purchaseOrdersTable.paymentDueDate}::date < ${todayStr}::date`,
+          sql`${purchaseOrdersTable.status} != 'cancelled'`
+        ))
+        .orderBy(asc(purchaseOrdersTable.paymentDueDate))
+        .limit(10);
+
+      // Draft sales invoices older than 3 days
+      result.overdueSalesInvoices = await db.select({
+        id: salesInvoicesTable.id,
+        invoiceNumber: salesInvoicesTable.invoiceNumber,
+        customerName: customersTable.name,
+        netAmount: salesInvoicesTable.netAmount,
+        createdAt: salesInvoicesTable.createdAt,
+      }).from(salesInvoicesTable)
+        .leftJoin(customersTable, eq(salesInvoicesTable.customerId, customersTable.id))
+        .where(and(
+          eq(salesInvoicesTable.companyId, companyId),
+          eq(salesInvoicesTable.status, "draft"),
+          lte(salesInvoicesTable.createdAt, threeDaysAgo)
+        ))
+        .orderBy(asc(salesInvoicesTable.createdAt))
+        .limit(10);
+    }
+
+    // ── SALES ────────────────────────────────────────────────────────────────
+    if (role === "sales") {
+      const [myTodayRow] = await db.select({
+        total: sql<number>`COALESCE(SUM(net_amount::numeric), 0)`,
+      }).from(salesInvoicesTable)
+        .where(and(
+          eq(salesInvoicesTable.companyId, companyId),
+          eq(salesInvoicesTable.status, "confirmed"),
+          eq(salesInvoicesTable.createdByUserId, userId),
+          gte(salesInvoicesTable.createdAt, today)
+        ));
+
+      const [myMonthRow] = await db.select({
+        total: sql<number>`COALESCE(SUM(net_amount::numeric), 0)`,
+      }).from(salesInvoicesTable)
+        .where(and(
+          eq(salesInvoicesTable.companyId, companyId),
+          eq(salesInvoicesTable.status, "confirmed"),
+          eq(salesInvoicesTable.createdByUserId, userId),
+          gte(salesInvoicesTable.createdAt, monthStart)
+        ));
+
+      result.mySales = {
+        today: parseFloat(String(myTodayRow.total)),
+        month: parseFloat(String(myMonthRow.total)),
+      };
+
+      // Customers needing followup today or overdue
+      result.customersForFollowup = await db.select({
+        id: customersTable.id,
+        name: customersTable.name,
+        phone: customersTable.phone,
+        nextFollowupDate: customersTable.nextFollowupDate,
+        classification: customersTable.classification,
+      }).from(customersTable)
+        .where(and(
+          eq(customersTable.companyId, companyId),
+          sql`${customersTable.nextFollowupDate} IS NOT NULL`,
+          sql`${customersTable.nextFollowupDate}::date <= ${todayStr}::date`
+        ))
+        .orderBy(asc(customersTable.nextFollowupDate))
+        .limit(10);
+    }
+
+    // ── PROCUREMENT ─────────────────────────────────────────────────────────
+    if (role === "procurement") {
+      result.pendingPOs = await db.select({
+        id: purchaseOrdersTable.id,
+        orderNumber: purchaseOrdersTable.orderNumber,
+        supplierName: suppliersTable.name,
+        status: purchaseOrdersTable.status,
+        netAmount: purchaseOrdersTable.netAmount,
+        createdAt: purchaseOrdersTable.createdAt,
+        paymentDueDate: purchaseOrdersTable.paymentDueDate,
+      }).from(purchaseOrdersTable)
+        .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+        .where(and(eq(purchaseOrdersTable.companyId, companyId), eq(purchaseOrdersTable.status, "pending")))
+        .orderBy(desc(purchaseOrdersTable.createdAt))
+        .limit(15);
+
+      result.lowStockProducts = await db.select({
+        id: productsTable.id,
+        name: productsTable.name,
+        code: productsTable.code,
+        currentQuantity: productsTable.currentQuantity,
+        safetyStock: productsTable.safetyStock,
+        unit: productsTable.unit,
+      }).from(productsTable)
+        .where(and(
+          eq(productsTable.companyId, companyId),
+          sql`${productsTable.currentQuantity}::numeric <= ${productsTable.safetyStock}::numeric`
+        ))
+        .orderBy(asc(productsTable.currentQuantity))
+        .limit(15);
+    }
+
+    // ── INVENTORY ────────────────────────────────────────────────────────────
+    if (role === "inventory") {
+      result.lowStockProducts = await db.select({
+        id: productsTable.id,
+        name: productsTable.name,
+        code: productsTable.code,
+        currentQuantity: productsTable.currentQuantity,
+        safetyStock: productsTable.safetyStock,
+        unit: productsTable.unit,
+      }).from(productsTable)
+        .where(and(
+          eq(productsTable.companyId, companyId),
+          sql`${productsTable.currentQuantity}::numeric <= ${productsTable.safetyStock}::numeric`
+        ))
+        .orderBy(asc(productsTable.currentQuantity))
+        .limit(30);
+
+      // Pending + partial POs awaiting receipt
+      result.pendingPOs = await db.select({
+        id: purchaseOrdersTable.id,
+        orderNumber: purchaseOrdersTable.orderNumber,
+        supplierName: suppliersTable.name,
+        status: purchaseOrdersTable.status,
+        netAmount: purchaseOrdersTable.netAmount,
+        createdAt: purchaseOrdersTable.createdAt,
+      }).from(purchaseOrdersTable)
+        .leftJoin(suppliersTable, eq(purchaseOrdersTable.supplierId, suppliersTable.id))
+        .where(and(
+          eq(purchaseOrdersTable.companyId, companyId),
+          sql`${purchaseOrdersTable.status} IN ('pending', 'partial')`
+        ))
+        .orderBy(desc(purchaseOrdersTable.createdAt))
+        .limit(15);
+    }
+
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Personal dashboard error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── existing endpoints (unchanged) ─────────────────────────────────────────
 
 router.get("/stats", requireAuth, async (req, res) => {
   try {
