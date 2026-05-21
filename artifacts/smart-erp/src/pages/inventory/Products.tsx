@@ -1,12 +1,14 @@
 import { useState } from "react"
 import { useListProducts, useCreateProduct } from "@workspace/api-client-react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Card, Button, Input, Badge, Dialog, Label } from "@/components/ui/shared"
 import { formatCurrency } from "@/lib/utils"
 import { Plus, Search, Filter, AlertCircle, PackageCheck, PackageX, Eye } from "lucide-react"
 import { Link } from "wouter"
 
 export function Products() {
-  const { data: products, refetch } = useListProducts();
+  const { data: products } = useListProducts();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
@@ -90,7 +92,10 @@ export function Products() {
         </div>
       </Card>
 
-      <CreateProductDialog isOpen={isCreateOpen} onClose={() => { setIsCreateOpen(false); refetch(); }} />
+      <CreateProductDialog isOpen={isCreateOpen} onClose={() => {
+        setIsCreateOpen(false)
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+      }} />
     </div>
   )
 }

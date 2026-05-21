@@ -61,11 +61,12 @@ export function SalesInvoices() {
   const [discountPercent, setDiscountPercent] = useState(0)
   const [notes, setNotes] = useState("")
   const [items, setItems] = useState<LineItem[]>([])
+  const [paymentType, setPaymentType] = useState<"cash" | "deferred">("deferred")
 
   const { data: invoices = [], isLoading } = useListSalesInvoices()
   const { data: customers = [] } = useListCustomers()
   const { data: products = [] } = useListProducts()
-  const { data: viewInvoice } = useGetSalesInvoice(viewingId ?? 0, { query: { enabled: !!viewingId } })
+  const { data: viewInvoice } = useGetSalesInvoice(viewingId ?? 0, { query: { enabled: !!viewingId } as any })
   const createMut = useCreateSalesInvoice()
   const updateMut = useUpdateSalesInvoice()
 
@@ -91,6 +92,7 @@ export function SalesInvoices() {
   const openAdd = () => {
     setCustomerId(null); setTaxPercent(14); setDiscountPercent(0)
     setNotes(""); setItems([{ productId: 0, quantity: 1, unitPrice: 0 }])
+    setPaymentType("deferred")
     setShowForm(true)
   }
 
@@ -119,12 +121,22 @@ export function SalesInvoices() {
     const valid = items.filter(i => i.productId && i.quantity > 0 && i.unitPrice > 0)
     if (!valid.length) { toast({ title: "خطأ", description: "أضف صنفاً واحداً على الأقل", variant: "destructive" }); return }
     setSaving(true)
+    const isCash = paymentType === "cash"
     try {
       await createMut.mutateAsync({
-        data: { customerId, taxPercent, discountPercent, notes: notes || undefined, items: valid } as any,
+        data: {
+          customerId, taxPercent, discountPercent,
+          notes: notes || undefined, items: valid,
+          paymentType,
+          ...(isCash ? { status: "confirmed", paidAmount: netTotal } : {}),
+        } as any,
       })
-      toast({ title: "تم الإنشاء", description: "تم إنشاء الفاتورة كمسودة" })
-      qc.invalidateQueries({ queryKey: ["sales"] })
+      toast({
+        title: "تم الإنشاء",
+        description: isCash ? "تم إنشاء الفاتورة وتأكيدها تلقائياً (كاش)" : "تم إنشاء الفاتورة كمسودة",
+      })
+      qc.invalidateQueries({ queryKey: ["/api/sales"] })
+      if (isCash) qc.invalidateQueries({ queryKey: ["/api/products"] })
       setShowForm(false)
     } catch (err: any) {
       toast({ title: "خطأ", description: err?.message ?? "فشل الإنشاء", variant: "destructive" })
@@ -136,9 +148,9 @@ export function SalesInvoices() {
     try {
       await updateMut.mutateAsync({ id, data: { status: "confirmed" } as any })
       toast({ title: "تم التأكيد", description: "تم خصم الكمية من المخزن" })
-      qc.invalidateQueries({ queryKey: ["sales"] })
-      qc.invalidateQueries({ queryKey: ["products"] })
-      qc.invalidateQueries({ queryKey: ["customers"] })
+      qc.invalidateQueries({ queryKey: ["/api/sales"] })
+      qc.invalidateQueries({ queryKey: ["/api/products"] })
+      qc.invalidateQueries({ queryKey: ["/api/customers"] })
     } catch (err: any) {
       toast({ title: "خطأ", description: err?.response?.data?.message ?? "فشل التأكيد", variant: "destructive" })
     } finally { setSaving(false) }
@@ -149,7 +161,7 @@ export function SalesInvoices() {
     try {
       await updateMut.mutateAsync({ id, data: { status: "cancelled" } as any })
       toast({ title: "تم الإلغاء" })
-      qc.invalidateQueries({ queryKey: ["sales"] })
+      qc.invalidateQueries({ queryKey: ["/api/sales"] })
     } catch { toast({ title: "خطأ", variant: "destructive" }) }
     finally { setSaving(false) }
   }
@@ -522,6 +534,47 @@ export function SalesInvoices() {
               <div className="flex justify-between pt-2 border-t border-primary/20 font-bold text-primary text-base"><span>الصافي</span><span>{formatCurrency(netTotal)}</span></div>
             </div>
 
+            {/* Payment Type */}
+            <div>
+              <label className="text-sm font-semibold mb-2 block flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5" />نوع الدفع
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentType("cash")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 p-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                    paymentType === "cash"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      : "border-border bg-white text-muted-foreground hover:border-emerald-300"
+                  )}
+                >
+                  <Check className={cn("w-4 h-4", paymentType === "cash" ? "opacity-100" : "opacity-0")} />
+                  كاش — يُؤكَّد فوراً
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentType("deferred")}
+                  className={cn(
+                    "flex items-center justify-center gap-2 p-3 rounded-xl border-2 text-sm font-semibold transition-all",
+                    paymentType === "deferred"
+                      ? "border-amber-500 bg-amber-50 text-amber-700"
+                      : "border-border bg-white text-muted-foreground hover:border-amber-300"
+                  )}
+                >
+                  <Check className={cn("w-4 h-4", paymentType === "deferred" ? "opacity-100" : "opacity-0")} />
+                  آجل — مسودة
+                </button>
+              </div>
+              {paymentType === "cash" && (
+                <p className="text-xs text-emerald-600 mt-1.5 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  ستُحفظ الفاتورة مؤكدة تلقائياً ويُخصم المخزون فوراً
+                </p>
+              )}
+            </div>
+
             {/* Notes */}
             <div>
               <label className="text-sm font-semibold mb-1.5 block">ملاحظات (اختياري)</label>
@@ -531,10 +584,16 @@ export function SalesInvoices() {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowForm(false)}>إلغاء</Button>
-            <Button onClick={handleSave} disabled={saving} className="gap-2 min-w-[140px]">
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className={cn("gap-2 min-w-[160px]", paymentType === "cash" ? "bg-emerald-600 hover:bg-emerald-700" : "")}
+            >
               {saving
                 ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />جاري الحفظ...</>
-                : <><Check className="w-4 h-4" />حفظ كمسودة</>}
+                : paymentType === "cash"
+                  ? <><Check className="w-4 h-4" />تأكيد وحفظ (كاش)</>
+                  : <><FileText className="w-4 h-4" />حفظ كمسودة (آجل)</>}
             </Button>
           </DialogFooter>
         </DialogContent>

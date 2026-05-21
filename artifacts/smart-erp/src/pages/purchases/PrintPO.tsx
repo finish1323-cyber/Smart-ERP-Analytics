@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 export function PrintPO() {
   const [, params] = useRoute("/print/po/:id")
   const id = params?.id ? parseInt(params.id) : 0
-  const { data: po } = useGetPurchaseOrder(id, { query: { enabled: !!id } }) as any
+  const { data: po } = useGetPurchaseOrder(id, { query: { enabled: !!id } as any }) as any
   const { data: company } = useGetCompany() as any
 
   useEffect(() => {

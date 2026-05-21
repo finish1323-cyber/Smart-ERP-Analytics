@@ -239,6 +239,8 @@ export default function Payments() {
 
   const handleExportCSV = () => {
     downloadCSV(
+      "financial_transactions",
+      ["التاريخ", "النوع", "الفئة", "الوصف", "المبلغ", "المورد", "الخزينة", "ملاحظات"],
       filtered.map(t => [
         t.transactionDate,
         t.type === "in" ? "وارد" : "صادر",
@@ -248,9 +250,7 @@ export default function Payments() {
         t.supplierName ?? "",
         t.safeName ?? "",
         t.notes ?? "",
-      ]),
-      ["التاريخ", "النوع", "الفئة", "الوصف", "المبلغ", "المورد", "الخزينة", "ملاحظات"],
-      "financial_transactions"
+      ])
     )
   }
 

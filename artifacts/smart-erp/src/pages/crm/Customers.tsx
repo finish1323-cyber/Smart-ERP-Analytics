@@ -26,16 +26,16 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils"
 type Customer = {
   id: number
   name: string
-  businessType?: string
-  phone?: string
-  email?: string
-  address?: string
+  businessType?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: string | null
   classification: "new" | "vip" | "inactive"
   status?: string
   nextFollowupDate?: string | null
   totalPurchases?: number
   lastOrderDate?: string | null
-  notes?: string
+  notes?: string | null
   createdAt?: string
 }
 
@@ -208,8 +208,8 @@ export function Customers() {
 
   const { data: customers = [], isLoading } = useListCustomers()
   const { data: todayFollowups = [] } = useGetTodayFollowups()
-  const { data: viewCustomer } = useGetCustomer(viewingId ?? 0, { query: { enabled: !!viewingId } })
-  const { data: callLogs = [] } = useGetCustomerCalls(viewingId ?? 0, { query: { enabled: !!viewingId } })
+  const { data: viewCustomer } = useGetCustomer(viewingId ?? 0, { query: { enabled: !!viewingId } as any })
+  const { data: callLogs = [] } = useGetCustomerCalls(viewingId ?? 0, { query: { enabled: !!viewingId } as any })
   const createMutation = useCreateCustomer()
   const updateMutation = useUpdateCustomer()
   const deleteMutation = useDeleteCustomer()
@@ -253,7 +253,7 @@ export function Customers() {
         await createMutation.mutateAsync({ data: payload as any })
         toast({ title: "تمت الإضافة", description: "تم إضافة العميل بنجاح" })
       }
-      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] })
       setShowForm(false)
     } catch {
       toast({ title: "خطأ", description: "حدث خطأ أثناء الحفظ", variant: "destructive" })
@@ -265,7 +265,7 @@ export function Customers() {
     try {
       await deleteMutation.mutateAsync({ id: deletingId })
       toast({ title: "تم الحذف" })
-      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] })
       if (viewingId === deletingId) setViewingId(null)
     } catch { toast({ title: "خطأ", description: "لا يمكن الحذف", variant: "destructive" }) }
     finally { setDeletingId(null) }
@@ -281,8 +281,8 @@ export function Customers() {
         data: { summary: callForm.summary, outcome: callForm.outcome, nextFollowupDate: callForm.nextFollowupDate || undefined } as any,
       })
       toast({ title: "تم التسجيل", description: "تم تسجيل المكالمة بنجاح" })
-      queryClient.invalidateQueries({ queryKey: ["customers", viewingId, "calls"] })
-      queryClient.invalidateQueries({ queryKey: ["customers"] })
+      queryClient.invalidateQueries({ queryKey: ["/api/customers", viewingId, "calls"] })
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] })
       setShowCallForm(false)
       setCallForm({ summary: "", outcome: "callback", nextFollowupDate: "" })
     } catch { toast({ title: "خطأ", description: "حدث خطأ", variant: "destructive" }) }

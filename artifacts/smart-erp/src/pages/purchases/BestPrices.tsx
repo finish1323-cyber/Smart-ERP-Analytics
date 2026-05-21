@@ -31,7 +31,7 @@ export function BestPrices() {
   const { data: rows = [], isLoading } = useGetBestPrices()
   const { data: suppliers = [] } = useListSuppliers()
   const { data: offers = [], isLoading: offersLoading } = useListSupplierOffersForProduct(openProductId ?? 0, {
-    query: { enabled: !!openProductId },
+    query: { enabled: !!openProductId } as any,
   })
 
   const filtered = useMemo(() => {

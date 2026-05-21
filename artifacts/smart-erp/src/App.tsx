@@ -21,7 +21,6 @@ import { Settings } from "@/pages/settings/Settings"
 import Payments from "@/pages/purchases/Payments"
 import { Chat } from "@/pages/chat/Chat"
 import { Notifications } from "@/pages/notifications/Notifications"
-import { AIPage } from "@/pages/ai/AIPage"
 
 import { useGetCurrentUser } from "@workspace/api-client-react"
 
@@ -92,7 +91,6 @@ function Router() {
       <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
       <Route path="/chat" component={() => <ProtectedRoute component={Chat} />} />
       <Route path="/notifications" component={() => <ProtectedRoute component={Notifications} />} />
-      <Route path="/ai" component={() => <ProtectedRoute component={AIPage} />} />
       <Route component={NotFound} />
     </Switch>
   )

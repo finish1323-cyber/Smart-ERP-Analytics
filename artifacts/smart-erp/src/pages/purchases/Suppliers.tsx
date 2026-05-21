@@ -53,12 +53,12 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 type Supplier = {
   id: number
   name: string
-  contactPerson?: string
-  phone?: string
-  email?: string
-  address?: string
+  contactPerson?: string | null
+  phone?: string | null
+  email?: string | null
+  address?: string | null
   discountPercent?: number | string
-  notes?: string
+  notes?: string | null
 }
 
 type SupplierFormData = {
@@ -107,11 +107,11 @@ export function Suppliers() {
 
   const { data: supplierProducts = [], isLoading: loadingSupProducts } = useListProductsBySupplier(
     viewingSupplier?.id ?? 0,
-    { query: { enabled: !!viewingSupplier } }
+    { query: { enabled: !!viewingSupplier } as any }
   )
   const { data: statement } = useGetSupplierStatement(
     viewingSupplier?.id ?? 0,
-    { query: { enabled: !!viewingSupplier } }
+    { query: { enabled: !!viewingSupplier } as any }
   ) as any
 
   // Add product to supplier dialog state
@@ -288,7 +288,7 @@ export function Suppliers() {
         title: "تم الاستيراد",
         description: `تم إضافة ${res.inserted} مورد${res.skipped ? ` — تخطي ${res.skipped} (مكرر أو خطأ)` : ""}`,
       })
-      queryClient.invalidateQueries({ queryKey: ["suppliers"] })
+      queryClient.invalidateQueries({ queryKey: getListSuppliersQueryKey() })
     } catch (err) {
       toast({ title: "خطأ في الاستيراد", description: "تأكد من ملف CSV صحيح", variant: "destructive" })
     }
@@ -304,7 +304,7 @@ export function Suppliers() {
         data: { supplierId: viewingSupplier.id, productId: pid, lastSupplyPrice: price },
       })
       toast({ title: "تم الربط", description: "تم إضافة الصنف لقائمة هذا المورد" })
-      queryClient.invalidateQueries({ queryKey: ["supplier-products"] })
+      queryClient.invalidateQueries({ queryKey: ["/api/supplier-products"] })
       setAddProductOpen(false)
       setAddProductId("")
       setAddProductPrice("")
@@ -317,7 +317,7 @@ export function Suppliers() {
     try {
       await unlinkMutation.mutateAsync({ id: linkId })
       toast({ title: "تم الفصل", description: "تم حذف الصنف من قائمة المورد" })
-      queryClient.invalidateQueries({ queryKey: ["supplier-products"] })
+      queryClient.invalidateQueries({ queryKey: ["/api/supplier-products"] })
     } catch {
       toast({ title: "خطأ", description: "فشل الحذف", variant: "destructive" })
     }

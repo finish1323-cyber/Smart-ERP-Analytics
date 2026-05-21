@@ -49,7 +49,7 @@ router.get("/", requireAuth, async (req, res) => {
 
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { customerId, taxPercent, discountPercent, notes, items } = req.body;
+    const { customerId, taxPercent, discountPercent, notes, items, status: reqStatus, paymentType } = req.body;
     if (!customerId || !items?.length) {
       res.status(400).json({ error: "Bad Request", message: "العميل والأصناف مطلوبان" });
       return;
@@ -71,11 +71,27 @@ router.post("/", requireAuth, async (req, res) => {
     const net = afterDiscount * (1 + tax / 100);
     const invoiceNumber = `INV-${++invoiceCounter}`;
 
+    const isCash = reqStatus === "confirmed";
+
+    // If cash, validate stock before inserting
+    if (isCash) {
+      for (const item of items) {
+        const product = await db.select().from(productsTable).where(eq(productsTable.id, item.productId)).limit(1);
+        if (product.length) {
+          const avail = parseFloat(product[0].currentQuantity as any);
+          if (avail < parseFloat(item.quantity)) {
+            res.status(400).json({ error: "Bad Request", message: `كمية ${product[0].name} غير كافية في المخزن` });
+            return;
+          }
+        }
+      }
+    }
+
     const inserted = await db.insert(salesInvoicesTable).values({
       companyId: req.companyId!,
       invoiceNumber,
       customerId,
-      status: "draft",
+      status: isCash ? "confirmed" : "draft",
       totalAmount: total.toFixed(2),
       taxPercent: tax.toString(),
       discountPercent: disc.toString(),
@@ -89,7 +105,23 @@ router.post("/", requireAuth, async (req, res) => {
       itemValues.map(v => ({ ...v, invoiceId: invoice.id }))
     );
 
-    await logActivity({ companyId: req.companyId, userId: req.userId, description: `تم إنشاء فاتورة مبيعات رقم ${invoiceNumber} للعميل ${customer[0].name}` });
+    // If cash → deduct stock and update customer totals
+    if (isCash) {
+      for (const item of items) {
+        const product = await db.select().from(productsTable).where(eq(productsTable.id, item.productId)).limit(1);
+        if (product.length) {
+          const p = product[0];
+          const newQty = parseFloat(p.currentQuantity as any) - parseFloat(item.quantity);
+          await db.update(productsTable).set({ currentQuantity: newQty.toString() }).where(eq(productsTable.id, p.id));
+          await db.insert(stockMovementsTable).values({ productId: p.id, type: "out", quantity: item.quantity.toString(), reference: invoiceNumber, userId: req.userId, notes: `مبيعات كاش - فاتورة ${invoiceNumber}` });
+        }
+      }
+      const c = customer[0];
+      const newTotal = parseFloat(c.totalPurchases as any) + net;
+      await db.update(customersTable).set({ totalPurchases: newTotal.toString(), lastOrderDate: new Date() }).where(eq(customersTable.id, c.id));
+    }
+
+    await logActivity({ companyId: req.companyId, userId: req.userId, description: `تم إنشاء فاتورة مبيعات رقم ${invoiceNumber} للعميل ${customer[0].name}${isCash ? " (كاش - مؤكدة)" : ""}` });
     res.status(201).json({ ...invoice, customerName: customer[0].name, totalAmount: parseFloat(invoice.totalAmount as any), taxPercent: parseFloat(invoice.taxPercent as any), discountPercent: parseFloat(invoice.discountPercent as any), netAmount: parseFloat(invoice.netAmount as any) });
   } catch (err) {
     req.log.error({ err }, "Create sales invoice error");

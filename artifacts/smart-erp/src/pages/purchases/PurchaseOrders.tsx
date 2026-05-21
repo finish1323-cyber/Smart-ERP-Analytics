@@ -46,7 +46,7 @@ type PO = {
   discountPercent: number
   taxPercent: number
   netAmount: number
-  notes?: string
+  notes?: string | null
   createdAt: string
 }
 
@@ -116,10 +116,10 @@ export function PurchaseOrders() {
   const { data: products = [] } = useListProducts()
   const { data: supplierProductsData = [] } = useListProductsBySupplier(
     selectedSupplierId ?? 0,
-    { query: { enabled: !!selectedSupplierId } }
+    { query: { enabled: !!selectedSupplierId } as any }
   )
-  const { data: viewPO } = useGetPurchaseOrder(viewId ?? 0, { query: { enabled: !!viewId } })
-  const { data: receivePO } = useGetPurchaseOrder(receiveId ?? 0, { query: { enabled: !!receiveId } })
+  const { data: viewPO } = useGetPurchaseOrder(viewId ?? 0, { query: { enabled: !!viewId } as any })
+  const { data: receivePO } = useGetPurchaseOrder(receiveId ?? 0, { query: { enabled: !!receiveId } as any })
   const createMutation = useCreatePurchaseOrder()
   const receiveMutation = useReceivePurchaseOrder()
   const cancelMutation = useDeletePurchaseOrder()
