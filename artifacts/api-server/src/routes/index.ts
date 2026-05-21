@@ -17,6 +17,7 @@ import safesRouter from "./safes";
 import financialTransactionsRouter from "./financial_transactions";
 import chatRouter from "./chat";
 import notificationsRouter from "./notifications";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -39,5 +40,6 @@ router.use("/safes", safesRouter);
 router.use("/financial-transactions", financialTransactionsRouter);
 router.use("/chat", chatRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/ai", aiRouter);
 
 export default router;

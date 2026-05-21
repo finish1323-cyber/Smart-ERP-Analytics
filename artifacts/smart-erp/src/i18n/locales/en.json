@@ -13,7 +13,8 @@
     "reports": "Reports",
     "settings": "Settings",
     "chat": "Internal Chat",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "ai": "AI Assistant"
   },
   "dashboard": {
     "title": "Overview",

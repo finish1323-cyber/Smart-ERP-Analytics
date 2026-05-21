@@ -119,6 +119,62 @@ router.get("/:id", requireAuth, async (req, res) => {
   }
 });
 
+router.get("/:id/statement", requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    const customers = await db.select().from(customersTable)
+      .where(and(eq(customersTable.id, id), eq(customersTable.companyId, req.companyId!)))
+      .limit(1);
+    if (!customers.length) { res.status(404).json({ error: "Not found" }); return; }
+
+    const invoices = await db.select({
+      id: salesInvoicesTable.id,
+      invoiceNumber: salesInvoicesTable.invoiceNumber,
+      status: salesInvoicesTable.status,
+      netAmount: salesInvoicesTable.netAmount,
+      createdAt: salesInvoicesTable.createdAt,
+    }).from(salesInvoicesTable)
+      .where(and(
+        eq(salesInvoicesTable.customerId, id),
+        eq(salesInvoicesTable.companyId, req.companyId!),
+        sql`${salesInvoicesTable.status} != 'cancelled'`
+      ))
+      .orderBy(sql`${salesInvoicesTable.createdAt} ASC`);
+
+    let running = 0;
+    const entries = invoices.map(inv => {
+      const amount = parseFloat(inv.netAmount as any);
+      const isPaid = inv.status === "confirmed";
+      running += amount;
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        status: inv.status,
+        amount,
+        isPaid,
+        createdAt: inv.createdAt,
+        runningBalance: running,
+      };
+    });
+
+    const totalPurchases = entries.reduce((s, e) => s + e.amount, 0);
+    const totalPaid = entries.filter(e => e.isPaid).reduce((s, e) => s + e.amount, 0);
+
+    res.json({
+      customerId: id,
+      customerName: customers[0].name,
+      totalPurchases,
+      totalPaid,
+      balance: totalPurchases - totalPaid,
+      entries,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Customer statement error");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 router.put("/:id", requireAuth, async (req, res) => {
   try {
     const id = parseInt(req.params.id);

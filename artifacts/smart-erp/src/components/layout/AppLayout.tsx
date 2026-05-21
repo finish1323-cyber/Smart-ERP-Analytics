@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter"
 import {
   LayoutDashboard, ShoppingCart, Package, Users,
   FileText, CheckSquare, BarChart, Settings, LogOut, Search, Bell,
-  Building2, ChevronDown, ChevronLeft, Wallet, MessageSquare, Globe
+  Building2, ChevronDown, ChevronLeft, Wallet, MessageSquare, Globe, Bot
 } from "lucide-react"
 import { useGetCurrentUser, useLogout } from "@workspace/api-client-react"
 import { useQuery } from "@tanstack/react-query"
@@ -37,6 +37,7 @@ const NAV_SCHEMA: NavItem[] = [
   { icon: CheckSquare, labelKey: "nav.tasks", href: "/tasks" },
   { icon: BarChart, labelKey: "nav.reports", href: "/reports" },
   { icon: MessageSquare, labelKey: "nav.chat", href: "/chat" },
+  { icon: Bot, labelKey: "nav.ai", href: "/ai" },
   { icon: Settings, labelKey: "nav.settings", href: "/settings" },
 ]
 

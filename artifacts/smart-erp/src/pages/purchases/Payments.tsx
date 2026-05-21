@@ -170,8 +170,8 @@ export default function Payments() {
           category: txnForm.category as any,
           amount: parseFloat(txnForm.amount),
           description: txnForm.description,
-          safeId: txnForm.safeId ? parseInt(txnForm.safeId) : undefined,
-          supplierId: txnForm.supplierId ? parseInt(txnForm.supplierId) : undefined,
+          safeId: (txnForm.safeId && txnForm.safeId !== "none") ? parseInt(txnForm.safeId) : undefined,
+          supplierId: (txnForm.supplierId && txnForm.supplierId !== "none") ? parseInt(txnForm.supplierId) : undefined,
           purchaseOrderId: txnForm.purchaseOrderId ? parseInt(txnForm.purchaseOrderId) : undefined,
           transactionDate: txnForm.transactionDate,
           notes: txnForm.notes || undefined,
@@ -558,7 +558,7 @@ export default function Payments() {
                 <Select value={txnForm.safeId} onValueChange={v => setTxnForm(f => ({ ...f, safeId: v }))}>
                   <SelectTrigger><SelectValue placeholder="اختر خزينة..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">بدون خزينة</SelectItem>
+                    <SelectItem value="none">بدون خزينة</SelectItem>
                     {(safes as any[]).map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -570,7 +570,7 @@ export default function Payments() {
                 <Select value={txnForm.supplierId} onValueChange={v => setTxnForm(f => ({ ...f, supplierId: v }))}>
                   <SelectTrigger><SelectValue placeholder="اختر مورد..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">بدون مورد</SelectItem>
+                    <SelectItem value="none">بدون مورد</SelectItem>
                     {(suppliers as any[]).map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -638,7 +638,7 @@ export default function Payments() {
                 <Select value={payInstallmentSafe} onValueChange={setPayInstallmentSafe}>
                   <SelectTrigger><SelectValue placeholder="اختر خزينة..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">بدون خزينة</SelectItem>
+                    <SelectItem value="none">بدون خزينة</SelectItem>
                     {(safes as any[]).map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>

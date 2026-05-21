@@ -14,11 +14,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useQuery } from "@tanstack/react-query"
 import {
   Plus, Search, Phone, Mail, MapPin, User, Star, Pencil, Trash2,
   ChevronLeft, Building2, PhoneCall, FileText, Package, Calendar,
   CheckCircle2, Clock, XCircle, AlertCircle, TrendingUp, ShoppingBag,
-  MessageSquare, CalendarDays, Bell, X, Check, Eye
+  MessageSquare, CalendarDays, Bell, X, Check, Eye, Receipt, ArrowUpDown
 } from "lucide-react"
 import { formatCurrency, formatDate, cn } from "@/lib/utils"
 
@@ -67,6 +68,127 @@ const emptyCustomerForm = {
   name: "", businessType: "", phone: "", email: "", address: "",
   classification: "new" as "new" | "vip" | "inactive",
   nextFollowupDate: "", notes: "",
+}
+
+// ── Statement Tab ─────────────────────────────────────────────────────────────
+type StatementEntry = {
+  id: number; invoiceNumber: string; status: string
+  amount: number; isPaid: boolean; createdAt: string; runningBalance: number
+}
+type StatementData = {
+  customerName: string; totalPurchases: number; totalPaid: number; balance: number
+  entries: StatementEntry[]
+}
+
+function StatementTab({ customerId }: { customerId: number }) {
+  const { data, isLoading, error } = useQuery<StatementData>({
+    queryKey: ["customer-statement", customerId],
+    queryFn: () =>
+      fetch(`/api/customers/${customerId}/statement`, { credentials: "include" })
+        .then(r => r.json()),
+    enabled: !!customerId,
+  })
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      جاري التحميل...
+    </div>
+  )
+
+  if (error || !data) return (
+    <div className="py-10 text-center text-muted-foreground">
+      <Receipt className="w-10 h-10 mx-auto mb-2 opacity-30" />
+      <p>تعذر تحميل كشف الحساب</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">إجمالي المشتريات</p>
+            <p className="text-lg font-bold text-primary">{formatCurrency(data.totalPurchases)}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">المدفوع (مؤكد)</p>
+            <p className="text-lg font-bold text-emerald-700">{formatCurrency(data.totalPaid)}</p>
+          </CardContent>
+        </Card>
+        <Card className={cn("border", data.balance > 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50")}>
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-1">الرصيد المتبقي</p>
+            <p className={cn("text-lg font-bold", data.balance > 0 ? "text-amber-700" : "text-emerald-700")}>
+              {formatCurrency(data.balance)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Entries Table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+            سجل الحركات ({data.entries.length} فاتورة)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {data.entries.length === 0 ? (
+            <div className="py-10 text-center text-muted-foreground">
+              <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p>لا توجد فواتير لهذا العميل</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40">
+                  <tr className="text-right">
+                    <th className="p-3 font-semibold">رقم الفاتورة</th>
+                    <th className="p-3 font-semibold">التاريخ</th>
+                    <th className="p-3 font-semibold">الحالة</th>
+                    <th className="p-3 font-semibold text-left">المبلغ</th>
+                    <th className="p-3 font-semibold text-left">الرصيد التراكمي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.entries.map(e => (
+                    <tr key={e.id} className="border-t border-border/50 hover:bg-muted/20">
+                      <td className="p-3 font-mono text-xs text-primary">#{e.invoiceNumber}</td>
+                      <td className="p-3 text-muted-foreground">{formatDate(e.createdAt)}</td>
+                      <td className="p-3">
+                        <span className={cn(
+                          "text-xs font-semibold px-2 py-0.5 rounded-full",
+                          e.status === "confirmed"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        )}>
+                          {e.status === "confirmed" ? "مؤكدة" : "مسودة"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-left font-semibold">{formatCurrency(e.amount)}</td>
+                      <td className="p-3 text-left font-bold text-primary">{formatCurrency(e.runningBalance)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-border bg-muted/20">
+                  <tr>
+                    <td colSpan={3} className="p-3 font-bold">الإجمالي</td>
+                    <td className="p-3 text-left font-bold">{formatCurrency(data.totalPurchases)}</td>
+                    <td className="p-3 text-left font-bold text-primary">{formatCurrency(data.totalPurchases)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
 
 export function Customers() {
@@ -279,6 +401,9 @@ export function Customers() {
                 <TabsTrigger value="products" className="flex-1 gap-1.5">
                   <Package className="w-4 h-4" />أكثر المشتريات
                 </TabsTrigger>
+                <TabsTrigger value="statement" className="flex-1 gap-1.5">
+                  <Receipt className="w-4 h-4" />كشف الحساب
+                </TabsTrigger>
               </TabsList>
 
               {/* Calls Tab */}
@@ -396,6 +521,11 @@ export function Customers() {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              {/* Statement Tab */}
+              <TabsContent value="statement">
+                <StatementTab customerId={viewingId!} />
               </TabsContent>
             </Tabs>
           </div>
