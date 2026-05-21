@@ -19,6 +19,8 @@ import { SalesInvoices } from "@/pages/sales/SalesInvoices"
 import { Reports } from "@/pages/reports/Reports"
 import { Settings } from "@/pages/settings/Settings"
 import Payments from "@/pages/purchases/Payments"
+import { Chat } from "@/pages/chat/Chat"
+import { Notifications } from "@/pages/notifications/Notifications"
 
 import { useGetCurrentUser } from "@workspace/api-client-react"
 
@@ -87,6 +89,8 @@ function Router() {
       <Route path="/tasks" component={() => <ProtectedRoute component={TaskBoard} />} />
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
       <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
+      <Route path="/chat" component={() => <ProtectedRoute component={Chat} />} />
+      <Route path="/notifications" component={() => <ProtectedRoute component={Notifications} />} />
       <Route component={NotFound} />
     </Switch>
   )

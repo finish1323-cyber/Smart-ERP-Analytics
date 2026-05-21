@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "purchases": "المشتريات",
+    "purchaseOrders": "أوامر الشراء",
+    "suppliers": "الموردون",
+    "bestPrices": "أفضل الأسعار",
+    "payments": "المدفوعات والمصاريف",
+    "inventory": "المخزن والمنتجات",
+    "crm": "العملاء والمبيعات",
+    "sales": "فواتير البيع",
+    "tasks": "المهام والأهداف",
+    "reports": "التقارير",
+    "settings": "الإعدادات",
+    "chat": "الشات الداخلي",
+    "notifications": "الإشعارات"
+  },
+  "dashboard": {
+    "title": "نظرة عامة",
+    "subtitle": "مرحباً بك، إليك ملخص لأداء العمل اليوم.",
+    "todaySales": "مبيعات اليوم",
+    "monthSales": "مبيعات الشهر",
+    "pendingPO": "أوامر شراء معلقة",
+    "lowStock": "أصناف تحت حد الأمان",
+    "activeCustomers": "عملاء نشطون",
+    "salesChart": "مبيعات آخر 30 يوم",
+    "recentActivity": "آخر الأنشطة"
+  },
+  "login": {
+    "subtitle": "تسجيل الدخول للنظام الإداري",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "submit": "دخول",
+    "demo": "للتجربة: admin@company.com / admin123",
+    "error": "بيانات الدخول غير صحيحة"
+  },
+  "lang": {
+    "toggle": "English",
+    "current": "العربية"
+  }
+}

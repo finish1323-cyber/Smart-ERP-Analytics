@@ -11,3 +11,5 @@ export * from "./audit_logs";
 export * from "./safes";
 export * from "./financial_transactions";
 export * from "./payment_installments";
+export * from "./chat";
+export * from "./notifications";

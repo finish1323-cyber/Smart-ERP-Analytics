@@ -3,11 +3,13 @@ import { Card, Badge } from "@/components/ui/shared"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { TrendingUp, ShoppingBag, Users, AlertTriangle, ArrowUpRight } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { useTranslation } from "react-i18next"
 
 export function Dashboard() {
   const { data: stats } = useGetDashboardStats();
   const { data: chartData } = useGetSalesChart();
   const { data: activities } = useGetRecentActivity();
+  const { t } = useTranslation();
 
   const StatCard = ({ title, value, icon: Icon, color, alert }: any) => (
     <Card className="p-6 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
@@ -30,32 +32,32 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">نظرة عامة</h1>
-          <p className="text-muted-foreground mt-1">مرحباً بك، إليك ملخص لأداء العمل اليوم.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight">{t("dashboard.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("dashboard.subtitle")}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="مبيعات اليوم" 
+          title={t("dashboard.todaySales")}
           value={formatCurrency(stats?.totalSalesToday || 0)} 
           icon={TrendingUp} 
           color="bg-emerald-500 text-emerald-600 dark:text-emerald-400" 
         />
         <StatCard 
-          title="مبيعات الشهر" 
+          title={t("dashboard.monthSales")}
           value={formatCurrency(stats?.totalSalesMonth || 0)} 
           icon={TrendingUp} 
           color="bg-primary text-primary" 
         />
         <StatCard 
-          title="أوامر شراء معلقة" 
+          title={t("dashboard.pendingPO")}
           value={stats?.pendingPurchaseOrders || 0} 
           icon={ShoppingBag} 
           color="bg-amber-500 text-amber-600 dark:text-amber-400" 
         />
         <StatCard 
-          title="أصناف تحت حد الأمان" 
+          title={t("dashboard.lowStock")}
           value={stats?.lowStockCount || 0} 
           icon={AlertTriangle} 
           color="bg-destructive text-destructive" 

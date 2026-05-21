@@ -1,0 +1,41 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "purchases": "Purchases",
+    "purchaseOrders": "Purchase Orders",
+    "suppliers": "Suppliers",
+    "bestPrices": "Best Prices",
+    "payments": "Payments & Expenses",
+    "inventory": "Inventory",
+    "crm": "CRM & Sales",
+    "sales": "Sales Invoices",
+    "tasks": "Tasks & Goals",
+    "reports": "Reports",
+    "settings": "Settings",
+    "chat": "Internal Chat",
+    "notifications": "Notifications"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "subtitle": "Welcome back! Here's your business summary for today.",
+    "todaySales": "Today's Sales",
+    "monthSales": "Month Sales",
+    "pendingPO": "Pending Purchase Orders",
+    "lowStock": "Low Stock Items",
+    "activeCustomers": "Active Customers",
+    "salesChart": "Sales — Last 30 Days",
+    "recentActivity": "Recent Activity"
+  },
+  "login": {
+    "subtitle": "Login to Management System",
+    "email": "Email Address",
+    "password": "Password",
+    "submit": "Login",
+    "demo": "Demo: admin@company.com / admin123",
+    "error": "Invalid login credentials"
+  },
+  "lang": {
+    "toggle": "العربية",
+    "current": "English"
+  }
+}

@@ -15,6 +15,8 @@ import auditLogsRouter from "./audit_logs";
 import reportsRouter from "./reports";
 import safesRouter from "./safes";
 import financialTransactionsRouter from "./financial_transactions";
+import chatRouter from "./chat";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -35,5 +37,7 @@ router.use("/audit-logs", auditLogsRouter);
 router.use("/reports", reportsRouter);
 router.use("/safes", safesRouter);
 router.use("/financial-transactions", financialTransactionsRouter);
+router.use("/chat", chatRouter);
+router.use("/notifications", notificationsRouter);
 
 export default router;
